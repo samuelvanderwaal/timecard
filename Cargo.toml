@@ -9,5 +9,7 @@ edition = "2018"
 [dependencies]
 clap = "2.33.0"
 chrono = "0.4.10"
-diesel = { verseion = "1.4.3", features = ["sqlite"] }
+diesel = { version = "1.4.3", features = ["sqlite"] }
+serde = { version = "1.0.103", features = ["derive"] }
 dotenv = "0.15.0"
+lazy_static = "1.4.0"
