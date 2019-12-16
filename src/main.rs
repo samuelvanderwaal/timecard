@@ -1,11 +1,9 @@
 use chrono::{Datelike, Local};
 use clap::{App, Arg};
-use diesel::sqlite::SqliteConnection;
+use rusqlite::{Connection, Result};
+use timecard::{establish_connection, create_weekly_report, write_entry, NewEntry};
 
-use timecard::{establish_connection, write_entry, create_weekly_report,
-               NewEntry};
-
-fn main() {
+fn main() -> Result<()> {
     let conn = establish_connection();
 
     let matches = App::new("timecard")
@@ -24,7 +22,7 @@ fn main() {
         .arg(
             Arg::with_name("this_week")
                 .short("w")
-                .long("this_week")
+                .long("this-week")
                 .help("Get time this week")
         )
         .arg(Arg::with_name("test").short("t"))
@@ -35,11 +33,16 @@ fn main() {
     }
 
     if matches.is_present("this_week") {
-        create_weekly_report(&conn);
+        match create_weekly_report(&conn) {
+            Ok(()) => (),
+            Err(e) => println!("Error: {:?}", e),
+        }
     }
+
+    Ok(())
 }
 
-fn process_new_entry(values: Vec<&str>, conn: &SqliteConnection) {
+fn process_new_entry(values: Vec<&str>, conn: &Connection) {
     let now = Local::now();
     let year = now.year();
     let month = now.month();
