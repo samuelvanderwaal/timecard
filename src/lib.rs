@@ -8,6 +8,8 @@ use chrono::{NaiveDateTime, Datelike, Duration, Local};
 use std::collections::HashMap;
 use prettytable::{Table, Row, Cell};
 use indexmap::IndexMap;
+use std::env;
+use dotenv::dotenv;
 
 #[derive(Debug, Clone)]
 pub struct Entry {
@@ -52,7 +54,9 @@ lazy_static! {
 }
 
 pub fn establish_connection() -> Connection {
-    let conn = Connection::open("./timecard.sqlite").unwrap();
+    dotenv().ok();
+    let db_url = env::var("DATABASE_URL").expect("Database url must be set!");
+    let conn = Connection::open(db_url).unwrap();
 
     // Create tables if they don't already exist.
     conn.execute("CREATE TABLE IF NOT EXISTS entries (
