@@ -20,10 +20,10 @@ fn main() -> Result<()> {
                 .value_delimiter(","),
         )
         .arg(
-            Arg::with_name("this_week")
+            Arg::with_name("week")
                 .short("w")
-                .long("this-week")
-                .help("Get time this week")
+                .long("week")
+                .help("Print weekly report.")
         )
         .arg(Arg::with_name("test").short("t"))
         .get_matches();
@@ -32,7 +32,7 @@ fn main() -> Result<()> {
         process_new_entry(values.collect(), &conn);
     }
 
-    if matches.is_present("this_week") {
+    if matches.is_present("week") {
         match create_weekly_report(&conn) {
             Ok(()) => (),
             Err(e) => println!("Error: {:?}", e),

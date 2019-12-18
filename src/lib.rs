@@ -68,12 +68,12 @@ pub fn establish_connection() -> Connection {
         memo TET NOT NULL
         )", NO_PARAMS).expect("Connection execution error!");
 
-    conn.execute("CREATE TABLE IF NOT EXISTS proejcts (
+    conn.execute("CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
         code TEXT NOT NULL
         )", NO_PARAMS).expect("Connection execution error!");
-    conn 
+    conn
 }
 
 // Debug
@@ -85,19 +85,6 @@ pub fn write_entry(conn: &Connection, new_entry: &NewEntry) -> SqlResult<()> {
             )?;
     Ok(())
 }
-
-// pub fn entries_this_week(conn: &Connection) -> Vec<Entry> {
-//     let week_day: String = Local::today().weekday().to_string();
-//     let offset = *WEEKDAYS.get(&week_day).expect("Day does not exist!");
-//     let week_beginning = Local::today() - Duration::days(offset);
-//     let week_entries: Vec<Entry> = dsl::sql_query(format!(
-//         "SELECT * FROM entries WHERE start > '{}'",
-//         week_beginning
-//     ))
-//     .load(conn)
-//     .unwrap();
-//     week_entries
-// }
 
 fn read_projects(conn: &Connection) -> SqlResult<Vec<Project>> {
     let query = "SELECT * FROM projects";
@@ -120,6 +107,7 @@ pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
     let offset = *WEEKDAYS.get(&day_of_week).expect("Day does not exist!");
     let week_beginning = Local::today() - Duration::days(offset);
     let parse_from_str = NaiveDateTime::parse_from_str;
+    println!("Week beginning: {:?}", week_beginning);
 
     // Set up table for printing.
     let mut table = Table::new();
@@ -142,6 +130,7 @@ pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
         let mut cells: Vec<Cell> = Vec::new();
         cells.push(Cell::new(&project.code));
 
+        // Process rows.
         while let Some(row) = rows.next()? {
             let raw_start: String = row.get(0)?;
             let raw_stop: String = row.get(1)?;
@@ -149,16 +138,19 @@ pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
 
             let start: NaiveDateTime = parse_from_str(&raw_start, DATE_FORMAT).expect("Parsing error!");
             let stop: NaiveDateTime = parse_from_str(&raw_stop, DATE_FORMAT).expect("Parsing error!");
+            println!("Start date: {:?}\nStop date: {:?}", start, stop);
 
             // Look up week day in HashMap and update value. If it doesn't exist insert 0 and then increment.
             let count = week_hours.entry(week_day).or_insert(0.0);
             *count += stop.signed_duration_since(start).num_minutes() as f64 / 60.0;
-
-            for hour in week_hours.values() {
-                cells.push(Cell::new(&hour.to_string()));
-            }
         }
-        table.add_row(Row::new(cells));
+        
+        // Iterate over hashmap hour values and add to cells.
+        for hour in week_hours.values() {
+            cells.push(Cell::new(&hour.to_string()));
+        }
+        
+        table.add_row(Row::new(cells.clone()));
     }
         table.printstd();
 
