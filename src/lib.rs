@@ -55,8 +55,8 @@ lazy_static! {
 
 pub fn establish_connection() -> Connection {
     dotenv().ok();
-    let db_url = env::var("DATABASE_URL").expect("Database url must be set!");
-    let conn = Connection::open(db_url).unwrap();
+    let db_url = env::var("TIMECARD_DB").expect("Database url must be set!");
+    let conn = Connection::open(db_url).expect("Could not open connection!");
 
     // Create tables if they don't already exist.
     conn.execute("CREATE TABLE IF NOT EXISTS entries (
