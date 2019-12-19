@@ -1,8 +1,7 @@
 use chrono::{Datelike, Local};
 use clap::{App, Arg};
 use rusqlite::{Connection, Result};
-use timecard::{establish_connection, create_weekly_report, write_entry, 
-               display_last_entry, NewEntry};
+use timecard::*;
 
 fn main() -> Result<()> {
     let conn = establish_connection();
@@ -29,7 +28,7 @@ fn main() -> Result<()> {
         .arg(
             Arg::with_name("last_entry")
                 .short("l")
-                .long("long")
+                .long("last")
                 .help("Display most recent entry.")
         )
         .arg(Arg::with_name("test").short("t"))

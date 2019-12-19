@@ -163,17 +163,16 @@ pub fn display_last_entry(conn: &Connection) -> SqlResult<()> {
 
     let mut table = Table::new();
     table.add_row(row![Fb => "Start Time", "Stop Time", "Week Day", "Code", "Memo"]);
+    let mut cells: Vec<Cell> = Vec::new();
 
     while let Some(row) = rows.next()? {
-        // Compiler can't infer type so must be explicit
-        let start: String = row.get(1)?;
-        let stop: String = row.get(2)?;
-        let week_day: String = row.get(3)?;
-        let code: String = row.get(4)?;
-        let memo: String = row.get(5)?;
-
-        table.add_row(row![start, stop, week_day, code, memo]);
+        for i in 1..=5 {
+            // Compiler can't infer type so must be explicit by assigning with a type annotation.
+            let value: String = row.get(i)?;
+            cells.push(Cell::new(&value));
+        }
     }
+    table.add_row(Row::new(cells));
 
     table.printstd();
 
