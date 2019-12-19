@@ -7,7 +7,7 @@ fn main() -> Result<()> {
     let conn = establish_connection();
 
     let matches = App::new("timecard")
-        .version("0.1.0")
+        .version("0.2.0")
         .author("Samuel Vanderwaal")
         .about("Time tracking command line program")
         .arg(
@@ -23,13 +23,25 @@ fn main() -> Result<()> {
             Arg::with_name("week")
                 .short("w")
                 .long("week")
-                .help("Print weekly report.")
+                .help("Print weekly report."),
         )
         .arg(
             Arg::with_name("last_entry")
                 .short("l")
                 .long("last")
-                .help("Display most recent entry.")
+                .help("Display most recent entry."),
+        )
+        .arg(
+            Arg::with_name("delete_entry")
+                .short("d")
+                .long("delete")
+                .help("Delete the most recent entry."),
+        )
+        .arg(
+            Arg::with_name("add_project")
+                .short("a")
+                .long("add-project")
+                .help("Add a new project to the reference table."),
         )
         .arg(Arg::with_name("test").short("t"))
         .get_matches();
@@ -48,6 +60,20 @@ fn main() -> Result<()> {
     if matches.is_present("last_entry") {
         match display_last_entry(&conn) {
             Ok(()) => (),
+            Err(e) => println!("Error: {:?}", e),
+        }
+    }
+
+    if matches.is_present("delete_entry") {
+        match delete_last_entry(&conn) {
+            Ok(()) => println!("Most recent entry deleted."),
+            Err(e) => println!("Error: {:?}", e),
+        }
+    }
+
+    if matches.is_present("add_project") {
+        match add_new_project(&conn) {
+            Ok(()) => println!("Project added."),
             Err(e) => println!("Error: {:?}", e),
         }
     }

@@ -3,13 +3,15 @@ extern crate prettytable;
 #[macro_use]
 extern crate lazy_static;
 
-use rusqlite::{params, NO_PARAMS, Connection, Result as SqlResult};
-use chrono::{NaiveDateTime, Datelike, Duration, Local};
-use std::collections::HashMap;
-use prettytable::{Table, Row, Cell};
+use chrono::{Datelike, Duration, Local, NaiveDateTime};
 use indexmap::IndexMap;
-use std::env;
+use prettytable::{Cell, Row, Table};
+use rusqlite::{params, Connection, Result as SqlResult, NO_PARAMS};
+use std::collections::HashMap;
+use std::io::{stdin, stdout, Write};
+
 use dotenv::dotenv;
+use std::env;
 
 #[derive(Debug, Clone)]
 pub struct Entry {
@@ -59,20 +61,28 @@ pub fn establish_connection() -> Connection {
     let conn = Connection::open(db_url).expect("Could not open connection!");
 
     // Create tables if they don't already exist.
-    conn.execute("CREATE TABLE IF NOT EXISTS entries (
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS entries (
         id INTEGER PRIMARY KEY,
         start TEXT NOT NULL,
         stop TEXT NOT NULL,
         week_day TEXT NOT NULL,
         code TEXT NOT NULL,
         memo TET NOT NULL
-        )", NO_PARAMS).expect("Connection execution error!");
+        )",
+        NO_PARAMS,
+    )
+    .expect("Connection execution error!");
 
-    conn.execute("CREATE TABLE IF NOT EXISTS projects (
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
         code TEXT NOT NULL
-        )", NO_PARAMS).expect("Connection execution error!");
+        )",
+        NO_PARAMS,
+    )
+    .expect("Connection execution error!");
     conn
 }
 
@@ -81,8 +91,14 @@ pub fn write_entry(conn: &Connection, new_entry: &NewEntry) -> SqlResult<()> {
     conn.execute(
         "INSERT INTO entries (start, stop, week_day, code, memo)
             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![new_entry.start, new_entry.stop, new_entry.week_day, new_entry.code, new_entry.memo],
-            )?;
+        params![
+            new_entry.start,
+            new_entry.stop,
+            new_entry.week_day,
+            new_entry.code,
+            new_entry.memo
+        ],
+    )?;
     Ok(())
 }
 
@@ -98,7 +114,6 @@ fn read_projects(conn: &Connection) -> SqlResult<Vec<Project>> {
     })?;
     let projects: Vec<Project> = project_iter.into_iter().map(|p| p.unwrap()).collect();
     Ok(projects)
-
 }
 
 pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
@@ -112,10 +127,12 @@ pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
     // Set up table for printing.
     let mut table = Table::new();
     table.add_row(row![Fb => "Project", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
-    
+
     for project in projects {
-        let query = format!("SELECT start, stop, week_day FROM entries WHERE code='{}' AND start > '{}';", 
-            project.code, week_beginning);
+        let query = format!(
+            "SELECT start, stop, week_day FROM entries WHERE code='{}' AND start > '{}';",
+            project.code, week_beginning
+        );
         let mut stmt = conn.prepare(&query)?;
         let mut rows = stmt.query(NO_PARAMS)?;
 
@@ -136,22 +153,24 @@ pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
             let raw_stop: String = row.get(1)?;
             let week_day: String = row.get(2)?;
 
-            let start: NaiveDateTime = parse_from_str(&raw_start, DATE_FORMAT).expect("Parsing error!");
-            let stop: NaiveDateTime = parse_from_str(&raw_stop, DATE_FORMAT).expect("Parsing error!");
+            let start: NaiveDateTime =
+                parse_from_str(&raw_start, DATE_FORMAT).expect("Parsing error!");
+            let stop: NaiveDateTime =
+                parse_from_str(&raw_stop, DATE_FORMAT).expect("Parsing error!");
 
             // Look up week day in HashMap and update value. If it doesn't exist insert 0 and then increment.
             let count = week_hours.entry(week_day).or_insert(0.0);
             *count += stop.signed_duration_since(start).num_minutes() as f64 / 60.0;
         }
-        
+
         // Iterate over hashmap hour values and add to cells.
         for hour in week_hours.values() {
             cells.push(Cell::new(&hour.to_string()));
         }
-        
+
         table.add_row(Row::new(cells.clone()));
     }
-        table.printstd();
+    table.printstd();
 
     Ok(())
 }
@@ -175,6 +194,41 @@ pub fn display_last_entry(conn: &Connection) -> SqlResult<()> {
     table.add_row(Row::new(cells));
 
     table.printstd();
+
+    Ok(())
+}
+
+pub fn delete_last_entry(conn: &Connection) -> SqlResult<()> {
+    conn.execute(
+        "DELETE FROM entries WHERE id = (SELECT MAX(id) FROM entries LIMIT 1);",
+        params![],
+    )?;
+    Ok(())
+}
+
+pub fn add_new_project(conn: &Connection) -> SqlResult<()> {
+    let mut name = String::new();
+    let mut code = String::new();
+
+    print!("Project name: ");
+    // Std out is line-buffered by default so flush to print output immediately.
+    stdout().flush().unwrap();
+    stdin()
+        .read_line(&mut name)
+        .expect("Failed to read from std in!");
+
+    print!("Project code (e.g.: 19-165): ");
+    stdout().flush().unwrap();
+    stdin()
+        .read_line(&mut code)
+        .expect("Failed to read from std in!");
+
+    let stmt = format!(
+        "INSERT INTO projects(name, code) VALUES('{}', '{}');",
+        name.trim_end(),
+        code.trim_end()
+    );
+    conn.execute(&stmt, params![])?;
 
     Ok(())
 }
