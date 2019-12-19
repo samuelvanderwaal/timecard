@@ -138,7 +138,6 @@ pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
 
             let start: NaiveDateTime = parse_from_str(&raw_start, DATE_FORMAT).expect("Parsing error!");
             let stop: NaiveDateTime = parse_from_str(&raw_stop, DATE_FORMAT).expect("Parsing error!");
-            println!("Start date: {:?}\nStop date: {:?}", start, stop);
 
             // Look up week day in HashMap and update value. If it doesn't exist insert 0 and then increment.
             let count = week_hours.entry(week_day).or_insert(0.0);
@@ -153,6 +152,30 @@ pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
         table.add_row(Row::new(cells.clone()));
     }
         table.printstd();
+
+    Ok(())
+}
+
+pub fn display_last_entry(conn: &Connection) -> SqlResult<()> {
+    let query = "SELECT * FROM entries ORDER BY id DESC LIMIT 1";
+    let mut stmt = conn.prepare(&query)?;
+    let mut rows = stmt.query(NO_PARAMS)?;
+
+    let mut table = Table::new();
+    table.add_row(row![Fb => "Start Time", "Stop Time", "Week Day", "Code", "Memo"]);
+
+    while let Some(row) = rows.next()? {
+        // Compiler can't infer type so must be explicit
+        let start: String = row.get(1)?;
+        let stop: String = row.get(2)?;
+        let week_day: String = row.get(3)?;
+        let code: String = row.get(4)?;
+        let memo: String = row.get(5)?;
+
+        table.add_row(row![start, stop, week_day, code, memo]);
+    }
+
+    table.printstd();
 
     Ok(())
 }

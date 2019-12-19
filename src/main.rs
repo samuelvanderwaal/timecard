@@ -1,7 +1,8 @@
 use chrono::{Datelike, Local};
 use clap::{App, Arg};
 use rusqlite::{Connection, Result};
-use timecard::{establish_connection, create_weekly_report, write_entry, NewEntry};
+use timecard::{establish_connection, create_weekly_report, write_entry, 
+               display_last_entry, NewEntry};
 
 fn main() -> Result<()> {
     let conn = establish_connection();
@@ -25,6 +26,12 @@ fn main() -> Result<()> {
                 .long("week")
                 .help("Print weekly report.")
         )
+        .arg(
+            Arg::with_name("last_entry")
+                .short("l")
+                .long("long")
+                .help("Display most recent entry.")
+        )
         .arg(Arg::with_name("test").short("t"))
         .get_matches();
 
@@ -34,6 +41,13 @@ fn main() -> Result<()> {
 
     if matches.is_present("week") {
         match create_weekly_report(&conn) {
+            Ok(()) => (),
+            Err(e) => println!("Error: {:?}", e),
+        }
+    }
+
+    if matches.is_present("last_entry") {
+        match display_last_entry(&conn) {
             Ok(()) => (),
             Err(e) => println!("Error: {:?}", e),
         }
