@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate clap;
+
 use chrono::{Datelike, Local};
 use clap::{App, Arg};
 use rusqlite::{Connection, Result};
@@ -7,9 +10,9 @@ fn main() -> Result<()> {
     let conn = establish_connection();
 
     let matches = App::new("timecard")
-        .version("0.2.0")
+        .version(crate_version!())
         .author("Samuel Vanderwaal")
-        .about("Time tracking command line program")
+        .about("A time-tracking command line program.")
         .arg(
             Arg::with_name("entry")
                 .short("e")
