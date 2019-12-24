@@ -232,3 +232,17 @@ pub fn add_new_project(conn: &Connection) -> SqlResult<()> {
 
     Ok(())
 }
+
+pub fn list_projects(conn: &Connection) -> SqlResult<()> {
+    let projects: Vec<Project> = read_projects(&conn)?;
+
+    let mut table = Table::new();
+    table.add_row(row![Fb => "Project Name", "Project Code"]);
+
+    for project in projects {
+        table.add_row(row![project.name, project.code]);
+    }
+    table.printstd();
+
+    Ok(())
+}

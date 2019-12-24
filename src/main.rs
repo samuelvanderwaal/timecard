@@ -43,6 +43,12 @@ fn main() -> Result<()> {
                 .long("add-project")
                 .help("Add a new project to the reference table."),
         )
+        .arg(
+            Arg::with_name("list_projects")
+                .short("p")
+                .long("list-projects")
+                .help("List all projects in the reference table.")
+        )
         .arg(Arg::with_name("test").short("t"))
         .get_matches();
 
@@ -74,6 +80,13 @@ fn main() -> Result<()> {
     if matches.is_present("add_project") {
         match add_new_project(&conn) {
             Ok(()) => println!("Project added."),
+            Err(e) => println!("Error: {:?}", e),
+        }
+    }
+    
+    if matches.is_present("list_projects") {
+        match list_projects(&conn) {
+            Ok(()) => (),
             Err(e) => println!("Error: {:?}", e),
         }
     }
