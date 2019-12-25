@@ -52,7 +52,11 @@ fn main() -> Result<()> {
                 .long("list-projects")
                 .help("List all projects in the reference table.")
         )
-        .arg(Arg::with_name("test").short("t"))
+        .arg(
+            Arg::with_name("delete_project")
+                .long("delete-project")
+                .help("Delete project from the reference table.")
+        )
         .get_matches();
 
     if let Some(values) = matches.values_of("entry") {
@@ -89,6 +93,13 @@ fn main() -> Result<()> {
     
     if matches.is_present("list_projects") {
         match list_projects(&conn) {
+            Ok(()) => (),
+            Err(e) => println!("Error: {:?}", e),
+        }
+    }
+
+    if matches.is_present("delete_project") {
+        match delete_project(&conn) {
             Ok(()) => (),
             Err(e) => println!("Error: {:?}", e),
         }

@@ -246,3 +246,48 @@ pub fn list_projects(conn: &Connection) -> SqlResult<()> {
 
     Ok(())
 }
+
+pub fn delete_project(conn: &Connection) -> SqlResult<()> {
+    let mut code = String::new();
+    let mut confirmation = String::new();
+
+    print!("Project code to DELETE: ");
+    stdout().flush().unwrap();
+    stdin()
+        .read_line(&mut code)
+        .expect("Failed to read from std in!");
+
+    code = code.trim_end().to_string();
+
+    print!("Are you sure you want to delete project: {}? Y/N  ", code);
+    stdout().flush().unwrap();
+    stdin()
+        .read_line(&mut confirmation)
+        .expect("Failed to read from std in!");
+
+    confirmation = confirmation.trim_end().to_lowercase();
+
+    if confirmation == "y" {
+        // Check that project exists.
+        let query = format!("SELECT * FROM projects WHERE code='{}';", code);
+        let mut stmt = conn.prepare(&query)?;
+        let mut rows = stmt.query(NO_PARAMS)?;
+
+        match rows.next()? {
+            Some(_) => (),
+            None => { 
+                println!("No such project!");
+                return Ok(())
+            }
+        }
+
+        let stmt = format!(
+            "DELETE FROM projects WHERE code='{}';", code);
+        conn.execute(&stmt, params![])?;
+        println!("Project deleted.");
+    } else {
+        println!("Canceled!");
+    }
+
+    Ok(())
+}
