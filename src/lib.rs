@@ -136,6 +136,8 @@ pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
         let mut stmt = conn.prepare(&query)?;
         let mut rows = stmt.query(NO_PARAMS)?;
 
+        let mut all_zeros = true;
+
         // Set up hashmap to track hours per week day.
         let mut week_hours: IndexMap<String, f64> = IndexMap::new();
         let week_days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -165,10 +167,16 @@ pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
 
         // Iterate over hashmap hour values and add to cells.
         for hour in week_hours.values() {
+            if *hour > 0.0 {
+                all_zeros = false;
+            }
             cells.push(Cell::new(&hour.to_string()));
         }
 
-        table.add_row(Row::new(cells.clone()));
+        // Only add rows with at least one non-zero value.
+        if !all_zeros {
+            table.add_row(Row::new(cells.clone()));
+        }
     }
     table.printstd();
 
