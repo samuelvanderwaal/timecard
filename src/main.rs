@@ -20,31 +20,32 @@ fn main() -> Result<()> {
                 .value_names(&["start", "stop", "code", "memo"])
                 .help("Add a new time entry.")
                 .takes_value(true)
-                .value_delimiter(","),
+                .value_delimiter(",")
         )
         .arg(
             Arg::with_name("week")
                 .short("w")
                 .long("week")
-                .help("Print weekly report."),
+                .takes_value(true)
+                .help("Print weekly report.")
         )
         .arg(
             Arg::with_name("last_entry")
                 .short("l")
                 .long("last")
-                .help("Display most recent entry."),
+                .help("Display most recent entry.")
         )
         .arg(
             Arg::with_name("delete_entry")
                 .short("d")
                 .long("delete")
-                .help("Delete the most recent entry."),
+                .help("Delete the most recent entry.")
         )
         .arg(
             Arg::with_name("add_project")
                 .short("a")
                 .long("add-project")
-                .help("Add a new project to the reference table."),
+                .help("Add a new project to the reference table.")
         )
         .arg(
             Arg::with_name("list_projects")
@@ -63,8 +64,15 @@ fn main() -> Result<()> {
         process_new_entry(values.collect(), &conn);
     }
 
-    if matches.is_present("week") {
-        match create_weekly_report(&conn) {
+    if let Some(value) = matches.value_of("week") {
+        let num = match value.parse::<i64>() {
+            Ok(n) => n,
+            Err(_) => { 
+                println!("Error: value must be an integer.");
+                std::process::exit(1);
+            },
+        };
+        match create_weekly_report(&conn, num) {
             Ok(()) => (),
             Err(e) => println!("Error: {:?}", e),
         }

@@ -116,11 +116,14 @@ fn read_projects(conn: &Connection) -> SqlResult<Vec<Project>> {
     Ok(projects)
 }
 
-pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
+pub fn create_weekly_report(conn: &Connection, num: i64) -> SqlResult<()> {
     let projects = read_projects(conn)?;
     let day_of_week: String = Local::today().weekday().to_string();
-    let offset = *WEEKDAYS.get(&day_of_week).expect("Day does not exist!");
+    // Offset is number required to go to beginning of week + 7 * num to find number of weeks we go back.
+    let offset = *WEEKDAYS.get(&day_of_week).expect("Day does not exist!") + (7 * num);
     let week_beginning = Local::today() - Duration::days(offset);
+    let week_ending = week_beginning + Duration::days(7);
+
     let parse_from_str = NaiveDateTime::parse_from_str;
     println!("Week beginning: {:?}", week_beginning);
 
@@ -130,8 +133,8 @@ pub fn create_weekly_report(conn: &Connection) -> SqlResult<()> {
 
     for project in projects {
         let query = format!(
-            "SELECT start, stop, week_day FROM entries WHERE code='{}' AND start > '{}';",
-            project.code, week_beginning
+            "SELECT start, stop, week_day FROM entries WHERE code='{}' AND start > '{}' and start < '{}';",
+            project.code, week_beginning, week_ending
         );
         let mut stmt = conn.prepare(&query)?;
         let mut rows = stmt.query(NO_PARAMS)?;
