@@ -286,14 +286,13 @@ pub fn delete_project(conn: &Connection) -> SqlResult<()> {
 
         match rows.next()? {
             Some(_) => (),
-            None => { 
+            None => {
                 println!("No such project!");
-                return Ok(())
+                return Ok(());
             }
         }
 
-        let stmt = format!(
-            "DELETE FROM projects WHERE code='{}';", code);
+        let stmt = format!("DELETE FROM projects WHERE code='{}';", code);
         conn.execute(&stmt, params![])?;
         println!("Project deleted.");
     } else {
