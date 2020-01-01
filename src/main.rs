@@ -30,6 +30,12 @@ fn main() -> Result<()> {
                 .help("Print weekly report."),
         )
         .arg(
+            Arg::with_name("with_memos")
+                .short("m")
+                .long("with-memos")
+                .help("Use with '-w`. Adds memos to weekly report.")
+        )
+        .arg(
             Arg::with_name("last_entry")
                 .short("l")
                 .long("last")
@@ -65,6 +71,7 @@ fn main() -> Result<()> {
     }
 
     if let Some(value) = matches.value_of("week") {
+        let mut memos = false;
         let num = match value.parse::<i64>() {
             Ok(n) => n,
             Err(_) => {
@@ -72,7 +79,10 @@ fn main() -> Result<()> {
                 std::process::exit(1);
             }
         };
-        match create_weekly_report(&conn, num) {
+        if matches.is_present("with_memos") {
+            memos = true;
+        }
+        match create_weekly_report(&conn, num, memos) {
             Ok(()) => (),
             Err(e) => println!("Error: {:?}", e),
         }

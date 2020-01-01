@@ -116,7 +116,7 @@ fn read_projects(conn: &Connection) -> SqlResult<Vec<Project>> {
     Ok(projects)
 }
 
-pub fn create_weekly_report(conn: &Connection, num: i64) -> SqlResult<()> {
+pub fn create_weekly_report(conn: &Connection, num: i64, with_memos: bool) -> SqlResult<()> {
     let projects = read_projects(conn)?;
     let day_of_week: String = Local::today().weekday().to_string();
     // Offset is number required to go to beginning of week + 7 * num to find number of weeks we go back.
@@ -133,39 +133,55 @@ pub fn create_weekly_report(conn: &Connection, num: i64) -> SqlResult<()> {
 
     for project in projects {
         let query = format!(
-            "SELECT start, stop, week_day FROM entries WHERE code='{}' AND start > '{}' and start < '{}';",
+            "SELECT start, stop, week_day, memo FROM entries WHERE code='{}' AND start > '{}' and start < '{}';",
             project.code, week_beginning, week_ending
         );
         let mut stmt = conn.prepare(&query)?;
         let mut rows = stmt.query(NO_PARAMS)?;
 
         let mut all_zeros = true;
+        let mut no_memos = true;
 
         // Set up hashmap to track hours per week day.
         let mut week_hours: IndexMap<String, f64> = IndexMap::new();
+        let mut week_memos: IndexMap<String, String> = IndexMap::new();
+
         let week_days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         for day in week_days.iter() {
             week_hours.insert((*day).to_owned(), 0.0);
+            week_memos.insert((*day).to_owned(), String::from(""));
         }
 
-        // Set up row and add project code.
-        let mut cells: Vec<Cell> = Vec::new();
-        cells.push(Cell::new(&project.code));
+        // Set up rows and add project code.
+        let mut time_cells: Vec<Cell> = Vec::new();
+        let mut memo_cells: Vec<Cell> = Vec::new();
+        time_cells.push(Cell::new(&project.code));
+        if with_memos{
+            memo_cells.push(Cell::new(" "));
+        }
 
         // Process rows.
         while let Some(row) = rows.next()? {
             let raw_start: String = row.get(0)?;
             let raw_stop: String = row.get(1)?;
             let week_day: String = row.get(2)?;
+            let memo: String = row.get(3)?;
+
+            println!("{:?}", memo);
 
             let start: NaiveDateTime =
                 parse_from_str(&raw_start, DATE_FORMAT).expect("Parsing error!");
             let stop: NaiveDateTime =
                 parse_from_str(&raw_stop, DATE_FORMAT).expect("Parsing error!");
 
-            // Look up week day in HashMap and update value. If it doesn't exist insert 0 and then increment.
-            let count = week_hours.entry(week_day).or_insert(0.0);
+            // Look up week day in the IndexMap and update value. If it doesn't exist insert 0 and then increment.
+            let count = week_hours.entry(week_day.clone()).or_insert(0.0);
             *count += stop.signed_duration_since(start).num_minutes() as f64 / 60.0;
+
+            // Look up the week day memos IndexMap and concatenate memos.
+            let current_memo = week_memos.entry(week_day).or_insert(String::from(""));
+            (*current_memo).push_str(&memo);
+            (*current_memo).push_str(";");
         }
 
         // Iterate over hashmap hour values and add to cells.
@@ -173,13 +189,25 @@ pub fn create_weekly_report(conn: &Connection, num: i64) -> SqlResult<()> {
             if *hour > 0.0 {
                 all_zeros = false;
             }
-            cells.push(Cell::new(&hour.to_string()));
+            time_cells.push(Cell::new(&hour.to_string()));
+        }
+
+        for memo in week_memos.values() {
+            if ! (*memo).is_empty() {
+                no_memos = false;
+            } 
+            memo_cells.push(Cell::new(&memo.to_string()));
         }
 
         // Only add rows with at least one non-zero value.
         if !all_zeros {
-            table.add_row(Row::new(cells.clone()));
+            table.add_row(Row::new(time_cells.clone()));
         }
+
+        if !no_memos && with_memos {
+            table.add_row(Row::new(memo_cells.clone()));
+        }
+
     }
     table.printstd();
 
