@@ -167,8 +167,6 @@ pub fn create_weekly_report(conn: &Connection, num: i64, with_memos: bool) -> Sq
             let week_day: String = row.get(2)?;
             let memo: String = row.get(3)?;
 
-            println!("{:?}", memo);
-
             let start: NaiveDateTime =
                 parse_from_str(&raw_start, DATE_FORMAT).expect("Parsing error!");
             let stop: NaiveDateTime =
