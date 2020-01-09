@@ -4,3 +4,4 @@
 * ~~View weekly reports arbitrarily far back:
     perhaps: `timecard -w INT` where `INT` is the number of weeks back. ~~
 * ~~Display memos with weekly report or have some way to access them easily through the app.~~
+* Display total hours for a given month
