@@ -9,6 +9,7 @@ use prettytable::{Cell, Row, Table};
 use rusqlite::{params, Connection, Result as SqlResult, NO_PARAMS};
 use std::collections::HashMap;
 use std::io::{stdin, stdout, Write};
+use std::str;
 
 use dotenv::dotenv;
 use std::env;
@@ -40,6 +41,7 @@ pub struct Project {
 }
 
 static DATE_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+const MAX_WIDTH: usize = 20;
 
 lazy_static! {
     static ref WEEKDAYS: HashMap<String, i64> = vec![
@@ -68,7 +70,7 @@ pub fn establish_connection() -> Connection {
         stop TEXT NOT NULL,
         week_day TEXT NOT NULL,
         code TEXT NOT NULL,
-        memo TET NOT NULL
+        memo TEXT NOT NULL
         )",
         NO_PARAMS,
     )
@@ -86,7 +88,6 @@ pub fn establish_connection() -> Connection {
     conn
 }
 
-// Debug
 pub fn write_entry(conn: &Connection, new_entry: &NewEntry) -> SqlResult<()> {
     conn.execute(
         "INSERT INTO entries (start, stop, week_day, code, memo)
@@ -116,11 +117,11 @@ fn read_projects(conn: &Connection) -> SqlResult<Vec<Project>> {
     Ok(projects)
 }
 
-pub fn create_weekly_report(conn: &Connection, num: i64, with_memos: bool) -> SqlResult<()> {
+pub fn create_weekly_report(conn: &Connection, num_weeks: i64, with_memos: bool) -> SqlResult<()> {
     let projects = read_projects(conn)?;
     let day_of_week: String = Local::today().weekday().to_string();
     // Offset is number required to go to beginning of week + 7 * num to find number of weeks we go back.
-    let offset = *WEEKDAYS.get(&day_of_week).expect("Day does not exist!") + (7 * num);
+    let offset = *WEEKDAYS.get(&day_of_week).expect("Day does not exist!") + (7 * num_weeks);
     let week_beginning = Local::today() - Duration::days(offset);
     let week_ending = week_beginning + Duration::days(7);
 
@@ -178,8 +179,16 @@ pub fn create_weekly_report(conn: &Connection, num: i64, with_memos: bool) -> Sq
 
             // Look up the week day memos IndexMap and concatenate memos.
             let current_memo = week_memos.entry(week_day).or_insert(String::from(""));
-            (*current_memo).push_str(&memo);
-            (*current_memo).push_str(";");
+            // Implement max width
+            for chunk in memo.as_bytes().chunks(MAX_WIDTH) {
+                let chunk_str = str::from_utf8(chunk)?;
+                (*current_memo).push_str(chunk_str);
+                if !(chunk_str.len() < MAX_WIDTH) {
+                    (*current_memo).push_str("\n");
+                }
+            }
+            (*current_memo).push_str("; ");
+            (*current_memo).push_str("\n");
         }
 
         // Iterate over hashmap hour values and add to cells.
@@ -223,7 +232,6 @@ pub fn display_last_entry(conn: &Connection) -> SqlResult<()> {
 
     while let Some(row) = rows.next()? {
         for i in 1..=5 {
-            // Compiler can't infer type so must be explicit by assigning with a type annotation.
             let value: String = row.get(i)?;
             cells.push(Cell::new(&value));
         }
