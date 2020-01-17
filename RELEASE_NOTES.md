@@ -1,3 +1,7 @@
+## v0.4.0
+* Add memos to weekly reports.
+* View older weeks as well as current one.
+
 ## v0.3.0
 
 Added:
