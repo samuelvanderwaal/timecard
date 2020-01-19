@@ -14,32 +14,6 @@ use std::str;
 use dotenv::dotenv;
 use std::env;
 
-#[derive(Debug, Clone)]
-pub struct Entry {
-    pub id: i32,
-    pub start: String,
-    pub stop: String,
-    pub week_day: String,
-    pub code: String,
-    pub memo: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct NewEntry {
-    pub start: String,
-    pub stop: String,
-    pub week_day: String,
-    pub code: String,
-    pub memo: String,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Project {
-    pub id: i32,
-    pub code: String,
-    pub name: String,
-}
-
 static DATE_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
 const MAX_WIDTH: usize = 20;
 
@@ -55,66 +29,6 @@ lazy_static! {
     ]
     .into_iter()
     .collect();
-}
-
-pub fn establish_connection() -> Connection {
-    dotenv().ok();
-    let db_url = env::var("TIMECARD_DB").expect("Database url must be set!");
-    let conn = Connection::open(db_url).expect("Could not open connection!");
-
-    // Create tables if they don't already exist.
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS entries (
-        id INTEGER PRIMARY KEY,
-        start TEXT NOT NULL,
-        stop TEXT NOT NULL,
-        week_day TEXT NOT NULL,
-        code TEXT NOT NULL,
-        memo TEXT NOT NULL
-        )",
-        NO_PARAMS,
-    )
-    .expect("Connection execution error!");
-
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS projects (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        code TEXT NOT NULL
-        )",
-        NO_PARAMS,
-    )
-    .expect("Connection execution error!");
-    conn
-}
-
-pub fn write_entry(conn: &Connection, new_entry: &NewEntry) -> SqlResult<()> {
-    conn.execute(
-        "INSERT INTO entries (start, stop, week_day, code, memo)
-            VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![
-            new_entry.start,
-            new_entry.stop,
-            new_entry.week_day,
-            new_entry.code,
-            new_entry.memo
-        ],
-    )?;
-    Ok(())
-}
-
-fn read_projects(conn: &Connection) -> SqlResult<Vec<Project>> {
-    let query = "SELECT * FROM projects";
-    let mut stmt = conn.prepare(query)?;
-    let project_iter = stmt.query_map(params![], |row| {
-        Ok(Project {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            code: row.get(2)?,
-        })
-    })?;
-    let projects: Vec<Project> = project_iter.into_iter().map(|p| p.unwrap()).collect();
-    Ok(projects)
 }
 
 pub fn create_weekly_report(conn: &Connection, num_weeks: i64, with_memos: bool) -> SqlResult<()> {
