@@ -13,7 +13,7 @@ use prettytable::{Table, Row, Cell};
 
 use backend::db::*;
 
-const MAX_WIDTH: usize = 20;
+const MAX_CHAR_WIDTH: usize = 20;
 
 fn main() {
     let conn = establish_connection();
@@ -238,7 +238,7 @@ fn create_weekly_report(conn: &Connection, weeks_ago: i64, with_memos: bool) -> 
             // Look up the week day memos IndexMap and concatenate memos.
             let daily_memo = week_memos.entry(entry.week_day).or_insert(String::from(""));
 
-            let formatted_memo = format_memo(entry.memo, MAX_WIDTH)?;
+            let formatted_memo = format_memo(entry.memo, MAX_CHAR_WIDTH)?;
             (*daily_memo).push_str(&formatted_memo);
         }
         // Iterate over hashmap hour values and add to cells.
@@ -277,7 +277,7 @@ fn display_last_entry(conn: &Connection) -> SqlResult<()> {
 
     let entry = query_last_entry(conn)?;
 
-    let formatted_memo = format_memo(entry.memo, MAX_WIDTH)?;
+    let formatted_memo = format_memo(entry.memo, MAX_CHAR_WIDTH)?;
 
     cells.push(Cell::new(&entry.start));
     cells.push(Cell::new(&entry.stop));

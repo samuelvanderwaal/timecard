@@ -15,6 +15,7 @@ pub struct Entry {
     pub memo: String,
 }
 
+
 #[derive(Debug, Clone)]
 pub struct NewEntry {
     pub start: String,
@@ -22,6 +23,18 @@ pub struct NewEntry {
     pub week_day: String,
     pub code: String,
     pub memo: String,
+}
+
+impl NewEntry {
+    pub fn new() -> Self {
+        NewEntry {
+            start: String::new(),
+            stop: String::new(),
+            week_day: String::new(),
+            code: String::new(),
+            memo: String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
