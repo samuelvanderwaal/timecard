@@ -11,7 +11,7 @@ use rusqlite::{Connection, Result as SqlResult};
 use indexmap::IndexMap;
 use prettytable::{Table, Row, Cell};
 
-use backend::db::*;
+use timecard::db::*;
 
 const MAX_CHAR_WIDTH: usize = 20;
 

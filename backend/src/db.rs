@@ -1,9 +1,10 @@
-use std::collections::HashMap;
-use rusqlite::{params, Connection, Result as SqlResult, NO_PARAMS};
 use chrono::{Datelike, Duration, Local};
+use rusqlite::{params, Connection, Result as SqlResult, NO_PARAMS};
+use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 
-use std::env;
 use dotenv::dotenv;
+use std::env;
 
 #[derive(Debug, Clone)]
 pub struct Entry {
@@ -15,8 +16,7 @@ pub struct Entry {
     pub memo: String,
 }
 
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewEntry {
     pub start: String,
     pub stop: String,
@@ -58,7 +58,7 @@ lazy_static! {
         ("Wed".to_owned(), 3),
         ("Thu".to_owned(), 4),
         ("Fri".to_owned(), 5),
-        ("Sat".to_owned(), 6),  
+        ("Sat".to_owned(), 6),
     ]
     .into_iter()
     .collect();
@@ -139,7 +139,7 @@ pub fn query_project(conn: &Connection, code: &str) -> SqlResult<Project> {
 
     Ok(match project_iter.next() {
         Some(project) => project?,
-        None => panic!("No such project!")
+        None => panic!("No such project!"),
     })
 }
 
@@ -182,7 +182,7 @@ pub fn query_weekly_entries(conn: &Connection, weeks_ago: i64) -> SqlResult<Vec<
             entries.push(entry?);
         }
 
-        project_entries.push(ProjectEntries{
+        project_entries.push(ProjectEntries {
             code: project.code,
             entries: entries,
         });
@@ -207,7 +207,7 @@ pub fn query_last_entry(conn: &Connection) -> SqlResult<Entry> {
     // Our query ensures only one result so we can safely assume our entry is the first and only value in the Iter.
     match entries_iter.next() {
         Some(e) => e,
-        None => panic!("No entry found!"),  
+        None => panic!("No entry found!"),
     }
 }
 
