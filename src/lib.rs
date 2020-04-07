@@ -1,4 +1,5 @@
 #[macro_use]
+
 extern crate prettytable;
 #[macro_use]
 extern crate lazy_static;
@@ -123,19 +124,21 @@ pub fn create_weekly_report(conn: &Connection, num_weeks: i64, with_memos: bool)
     // Offset is number required to go to beginning of week + 7 * num to find number of weeks we go back.
     let offset = *WEEKDAYS.get(&day_of_week).expect("Day does not exist!") + (7 * num_weeks);
     let week_beginning = Local::today() - Duration::days(offset);
-    let week_ending = week_beginning + Duration::days(7);
+    let week_ending = week_beginning + Duration::days(6);
 
     let parse_from_str = NaiveDateTime::parse_from_str;
     println!("Week beginning: {:?}", week_beginning);
+    println!("Week ending: {:?}", week_ending);
 
     // Set up table for printing.
     let mut table = Table::new();
     table.add_row(row![Fb => "Project", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
 
     for project in projects {
+        // To-Do: fix week_beginning & ending to be datetime so we don't have to slice off the timezone on line 141
         let query = format!(
-            "SELECT start, stop, week_day, memo FROM entries WHERE code='{}' AND start > '{}' and start < '{}';",
-            project.code, week_beginning, week_ending
+            "SELECT start, stop, week_day, memo FROM entries WHERE code='{}' AND start >= '{}' and start <= '{}';",
+            project.code, &week_beginning.to_string()[0..10], week_ending
         );
         let mut stmt = conn.prepare(&query)?;
         let mut rows = stmt.query(NO_PARAMS)?;

@@ -1,7 +1,8 @@
 #[macro_use]
 extern crate clap;
 
-use chrono::{Datelike, Local};
+use chrono::{Datelike, Duration, Local};
+use chrono::offset::TimeZone;
 use clap::{App, Arg};
 use rusqlite::{Connection, Result};
 use timecard::*;
@@ -19,6 +20,15 @@ fn main() -> Result<()> {
                 .long("entry")
                 .value_names(&["start", "stop", "code", "memo"])
                 .help("Add a new time entry.")
+                .takes_value(true)
+                .value_delimiter(","),
+        )
+        .arg(
+            Arg::with_name("backdate")
+                .short("b")
+                .long("backdate")
+                .value_names(&["backdate", "start", "stop", "code", "memo"])
+                .help("Add a backdated entry.")
                 .takes_value(true)
                 .value_delimiter(","),
         )
@@ -69,6 +79,10 @@ fn main() -> Result<()> {
     if let Some(values) = matches.values_of("entry") {
         process_new_entry(values.collect(), &conn);
     }
+
+    if let Some(values) = matches.values_of("backdate") {
+        backdated_entry(values.collect(), &conn);
+    } 
 
     if let Some(value) = matches.value_of("week") {
         let mut memos = false;
@@ -147,6 +161,55 @@ fn process_new_entry(values: Vec<&str>, conn: &Connection) {
     let week_day: String = Local::today().weekday().to_string();
     let code = values[2].to_owned();
     let memo = values[3].to_owned();
+
+    let new_entry = NewEntry {
+        start,
+        stop,
+        week_day,
+        code,
+        memo,
+    };
+
+    match write_entry(conn, &new_entry) {
+        Ok(_) => println!("Entry submitted."),
+        Err(e) => println!("Error writing entry: {:?}", e),
+    }
+}
+
+fn backdated_entry(values: Vec<&str>, conn: &Connection) {
+    let date = match values[0] {
+        "today" => Local::today(),
+        "yesterday" => Local::today() - Duration::days(1),
+        "tomorrow" => Local::today() + Duration::days(1),
+        _ => {
+            let date_values: Vec<&str> = values[0].split("-").collect();
+            let year: i32 = date_values[0].parse().unwrap();
+            let month: u32 = date_values[1].parse().unwrap();
+            let day: u32 = date_values[2].parse().unwrap();
+
+            Local.ymd(year, month, day)
+            }, 
+    };
+
+    let year = date.year();
+    let month = date.month();
+    let day = date.day();
+
+    let (start_hour, start_minute) = parse_entry_time(values[1].to_owned());
+    let (stop_hour, stop_minute) = parse_entry_time(values[2].to_owned());
+
+    let start = format!(
+        "{}-{:02}-{:02} {:02}:{:02}:{:02}",
+        year, month, day, start_hour, start_minute, 0
+    );
+    let stop = format!(
+        "{}-{:02}-{:02} {:02}:{:02}:{:02}",
+        year, month, day, stop_hour, stop_minute, 0
+    );
+
+    let week_day: String = date.weekday().to_string();
+    let code = values[3].to_owned();
+    let memo = values[4].to_owned();
 
     let new_entry = NewEntry {
         start,

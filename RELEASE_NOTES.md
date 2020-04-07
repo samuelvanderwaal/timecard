@@ -1,3 +1,7 @@
+## v0.4.1
+* Feature to add backdated entries
+* Fix off by one error
+
 ## v0.4.0
 * Add memos to weekly reports.
 * View older weeks as well as current one.
