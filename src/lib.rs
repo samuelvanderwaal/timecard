@@ -1,340 +1,339 @@
-#[macro_use]
+// #[macro_use]
+// extern crate prettytable;
+// #[macro_use]
+// extern crate lazy_static;
 
-extern crate prettytable;
-#[macro_use]
-extern crate lazy_static;
+// use chrono::{Datelike, Duration, Local, NaiveDateTime};
+// use indexmap::IndexMap;
+// use prettytable::{Cell, Row, Table};
+// use rusqlite::{params, Connection, Result as SqlResult, NO_PARAMS};
+// use std::collections::HashMap;
+// use std::io::{stdin, stdout, Write};
+// use std::str;
 
-use chrono::{Datelike, Duration, Local, NaiveDateTime};
-use indexmap::IndexMap;
-use prettytable::{Cell, Row, Table};
-use rusqlite::{params, Connection, Result as SqlResult, NO_PARAMS};
-use std::collections::HashMap;
-use std::io::{stdin, stdout, Write};
-use std::str;
+// use dotenv::dotenv;
+// use std::env;
 
-use dotenv::dotenv;
-use std::env;
+// #[derive(Debug, Clone)]
+// pub struct Entry {
+//     pub id: i32,
+//     pub start: String,
+//     pub stop: String,
+//     pub week_day: String,
+//     pub code: String,
+//     pub memo: String,
+// }
 
-#[derive(Debug, Clone)]
-pub struct Entry {
-    pub id: i32,
-    pub start: String,
-    pub stop: String,
-    pub week_day: String,
-    pub code: String,
-    pub memo: String,
-}
+// #[derive(Debug, Clone)]
+// pub struct NewEntry {
+//     pub start: String,
+//     pub stop: String,
+//     pub week_day: String,
+//     pub code: String,
+//     pub memo: String,
+// }
 
-#[derive(Debug, Clone)]
-pub struct NewEntry {
-    pub start: String,
-    pub stop: String,
-    pub week_day: String,
-    pub code: String,
-    pub memo: String,
-}
+// #[derive(Debug, Clone, PartialEq)]
+// pub struct Project {
+//     pub id: i32,
+//     pub code: String,
+//     pub name: String,
+// }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Project {
-    pub id: i32,
-    pub code: String,
-    pub name: String,
-}
+// static DATE_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+// const MAX_WIDTH: usize = 20;
 
-static DATE_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
-const MAX_WIDTH: usize = 20;
+// lazy_static! {
+//     static ref WEEKDAYS: HashMap<String, i64> = vec![
+//         ("Sun".to_owned(), 0),
+//         ("Mon".to_owned(), 1),
+//         ("Tue".to_owned(), 2),
+//         ("Wed".to_owned(), 3),
+//         ("Thu".to_owned(), 4),
+//         ("Fri".to_owned(), 5),
+//         ("Sat".to_owned(), 6),
+//     ]
+//     .into_iter()
+//     .collect();
+// }
 
-lazy_static! {
-    static ref WEEKDAYS: HashMap<String, i64> = vec![
-        ("Sun".to_owned(), 0),
-        ("Mon".to_owned(), 1),
-        ("Tue".to_owned(), 2),
-        ("Wed".to_owned(), 3),
-        ("Thu".to_owned(), 4),
-        ("Fri".to_owned(), 5),
-        ("Sat".to_owned(), 6),
-    ]
-    .into_iter()
-    .collect();
-}
+// pub fn establish_connection() -> Connection {
+//     dotenv().ok();
+//     let db_url = env::var("TIMECARD_DB").expect("Database url must be set!");
+//     let conn = Connection::open(db_url).expect("Could not open connection!");
 
-pub fn establish_connection() -> Connection {
-    dotenv().ok();
-    let db_url = env::var("TIMECARD_DB").expect("Database url must be set!");
-    let conn = Connection::open(db_url).expect("Could not open connection!");
+//     // Create tables if they don't already exist.
+//     conn.execute(
+//         "CREATE TABLE IF NOT EXISTS entries (
+//         id INTEGER PRIMARY KEY,
+//         start TEXT NOT NULL,
+//         stop TEXT NOT NULL,
+//         week_day TEXT NOT NULL,
+//         code TEXT NOT NULL,
+//         memo TEXT NOT NULL
+//         )",
+//         NO_PARAMS,
+//     )
+//     .expect("Connection execution error!");
 
-    // Create tables if they don't already exist.
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS entries (
-        id INTEGER PRIMARY KEY,
-        start TEXT NOT NULL,
-        stop TEXT NOT NULL,
-        week_day TEXT NOT NULL,
-        code TEXT NOT NULL,
-        memo TEXT NOT NULL
-        )",
-        NO_PARAMS,
-    )
-    .expect("Connection execution error!");
+//     conn.execute(
+//         "CREATE TABLE IF NOT EXISTS projects (
+//         id INTEGER PRIMARY KEY,
+//         name TEXT NOT NULL,
+//         code TEXT NOT NULL
+//         )",
+//         NO_PARAMS,
+//     )
+//     .expect("Connection execution error!");
+//     conn
+// }
 
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS projects (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        code TEXT NOT NULL
-        )",
-        NO_PARAMS,
-    )
-    .expect("Connection execution error!");
-    conn
-}
+// pub fn write_entry(conn: &Connection, new_entry: &NewEntry) -> SqlResult<()> {
+//     conn.execute(
+//         "INSERT INTO entries (start, stop, week_day, code, memo)
+//             VALUES (?1, ?2, ?3, ?4, ?5)",
+//         params![
+//             new_entry.start,
+//             new_entry.stop,
+//             new_entry.week_day,
+//             new_entry.code,
+//             new_entry.memo
+//         ],
+//     )?;
+//     Ok(())
+// }
 
-pub fn write_entry(conn: &Connection, new_entry: &NewEntry) -> SqlResult<()> {
-    conn.execute(
-        "INSERT INTO entries (start, stop, week_day, code, memo)
-            VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![
-            new_entry.start,
-            new_entry.stop,
-            new_entry.week_day,
-            new_entry.code,
-            new_entry.memo
-        ],
-    )?;
-    Ok(())
-}
+// fn read_projects(conn: &Connection) -> SqlResult<Vec<Project>> {
+//     let query = "SELECT * FROM projects";
+//     let mut stmt = conn.prepare(query)?;
+//     let project_iter = stmt.query_map(params![], |row| {
+//         Ok(Project {
+//             id: row.get(0)?,
+//             name: row.get(1)?,
+//             code: row.get(2)?,
+//         })
+//     })?;
+//     let projects: Vec<Project> = project_iter.into_iter().map(|p| p.unwrap()).collect();
+//     Ok(projects)
+// }
 
-fn read_projects(conn: &Connection) -> SqlResult<Vec<Project>> {
-    let query = "SELECT * FROM projects";
-    let mut stmt = conn.prepare(query)?;
-    let project_iter = stmt.query_map(params![], |row| {
-        Ok(Project {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            code: row.get(2)?,
-        })
-    })?;
-    let projects: Vec<Project> = project_iter.into_iter().map(|p| p.unwrap()).collect();
-    Ok(projects)
-}
+// pub fn create_weekly_report(conn: &Connection, num_weeks: i64, with_memos: bool) -> SqlResult<()> {
+//     let projects = read_projects(conn)?;
+//     let day_of_week: String = Local::today().weekday().to_string();
+//     // Offset is number required to go to beginning of week + 7 * num to find number of weeks we go back.
+//     let offset = *WEEKDAYS.get(&day_of_week).expect("Day does not exist!") + (7 * num_weeks);
+//     let week_beginning = Local::today() - Duration::days(offset);
+//     let week_ending = week_beginning + Duration::days(6);
 
-pub fn create_weekly_report(conn: &Connection, num_weeks: i64, with_memos: bool) -> SqlResult<()> {
-    let projects = read_projects(conn)?;
-    let day_of_week: String = Local::today().weekday().to_string();
-    // Offset is number required to go to beginning of week + 7 * num to find number of weeks we go back.
-    let offset = *WEEKDAYS.get(&day_of_week).expect("Day does not exist!") + (7 * num_weeks);
-    let week_beginning = Local::today() - Duration::days(offset);
-    let week_ending = week_beginning + Duration::days(6);
+//     let parse_from_str = NaiveDateTime::parse_from_str;
+//     println!("Week beginning: {:?}", week_beginning);
+//     println!("Week ending: {:?}", week_ending);
 
-    let parse_from_str = NaiveDateTime::parse_from_str;
-    println!("Week beginning: {:?}", week_beginning);
-    println!("Week ending: {:?}", week_ending);
+//     // Set up table for printing.
+//     let mut table = Table::new();
+//     table.add_row(row![Fb => "Project", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
 
-    // Set up table for printing.
-    let mut table = Table::new();
-    table.add_row(row![Fb => "Project", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
+//     for project in projects {
+//         // To-Do: fix week_beginning & ending to be datetime so we don't have to slice off the timezone on line 141
+//         let query = format!(
+//             "SELECT start, stop, week_day, memo FROM entries WHERE code='{}' AND start >= '{}' and start <= '{}';",
+//             project.code, &week_beginning.to_string()[0..10], week_ending
+//         );
+//         let mut stmt = conn.prepare(&query)?;
+//         let mut rows = stmt.query(NO_PARAMS)?;
 
-    for project in projects {
-        // To-Do: fix week_beginning & ending to be datetime so we don't have to slice off the timezone on line 141
-        let query = format!(
-            "SELECT start, stop, week_day, memo FROM entries WHERE code='{}' AND start >= '{}' and start <= '{}';",
-            project.code, &week_beginning.to_string()[0..10], week_ending
-        );
-        let mut stmt = conn.prepare(&query)?;
-        let mut rows = stmt.query(NO_PARAMS)?;
+//         let mut all_zeros = true;
+//         let mut no_memos = true;
 
-        let mut all_zeros = true;
-        let mut no_memos = true;
+//         // Set up hashmap to track hours per week day.
+//         let mut week_hours: IndexMap<String, f64> = IndexMap::new();
+//         let mut week_memos: IndexMap<String, String> = IndexMap::new();
 
-        // Set up hashmap to track hours per week day.
-        let mut week_hours: IndexMap<String, f64> = IndexMap::new();
-        let mut week_memos: IndexMap<String, String> = IndexMap::new();
+//         let week_days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+//         for day in week_days.iter() {
+//             week_hours.insert((*day).to_owned(), 0.0);
+//             week_memos.insert((*day).to_owned(), String::from(""));
+//         }
 
-        let week_days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-        for day in week_days.iter() {
-            week_hours.insert((*day).to_owned(), 0.0);
-            week_memos.insert((*day).to_owned(), String::from(""));
-        }
+//         // Set up rows and add project code.
+//         let mut time_cells: Vec<Cell> = Vec::new();
+//         let mut memo_cells: Vec<Cell> = Vec::new();
+//         time_cells.push(Cell::new(&project.code));
+//         if with_memos{
+//             memo_cells.push(Cell::new(" "));
+//         }
 
-        // Set up rows and add project code.
-        let mut time_cells: Vec<Cell> = Vec::new();
-        let mut memo_cells: Vec<Cell> = Vec::new();
-        time_cells.push(Cell::new(&project.code));
-        if with_memos{
-            memo_cells.push(Cell::new(" "));
-        }
+//         // Process rows.
+//         while let Some(row) = rows.next()? {
+//             let raw_start: String = row.get(0)?;
+//             let raw_stop: String = row.get(1)?;
+//             let week_day: String = row.get(2)?;
+//             let memo: String = row.get(3)?;
 
-        // Process rows.
-        while let Some(row) = rows.next()? {
-            let raw_start: String = row.get(0)?;
-            let raw_stop: String = row.get(1)?;
-            let week_day: String = row.get(2)?;
-            let memo: String = row.get(3)?;
+//             let start: NaiveDateTime =
+//                 parse_from_str(&raw_start, DATE_FORMAT).expect("Parsing error!");
+//             let stop: NaiveDateTime =
+//                 parse_from_str(&raw_stop, DATE_FORMAT).expect("Parsing error!");
 
-            let start: NaiveDateTime =
-                parse_from_str(&raw_start, DATE_FORMAT).expect("Parsing error!");
-            let stop: NaiveDateTime =
-                parse_from_str(&raw_stop, DATE_FORMAT).expect("Parsing error!");
+//             // Look up week day in the IndexMap and update value. If it doesn't exist insert 0 and then increment.
+//             let count = week_hours.entry(week_day.clone()).or_insert(0.0);
+//             *count += stop.signed_duration_since(start).num_minutes() as f64 / 60.0;
 
-            // Look up week day in the IndexMap and update value. If it doesn't exist insert 0 and then increment.
-            let count = week_hours.entry(week_day.clone()).or_insert(0.0);
-            *count += stop.signed_duration_since(start).num_minutes() as f64 / 60.0;
+//             // Look up the week day memos IndexMap and concatenate memos.
+//             let current_memo = week_memos.entry(week_day).or_insert(String::from(""));
+//             // Implement max width
+//             for chunk in memo.as_bytes().chunks(MAX_WIDTH) {
+//                 let chunk_str = str::from_utf8(chunk)?;
+//                 (*current_memo).push_str(chunk_str);
+//                 if !(chunk_str.len() < MAX_WIDTH) {
+//                     (*current_memo).push_str("\n");
+//                 }
+//             }
+//             (*current_memo).push_str("; ");
+//             (*current_memo).push_str("\n");
+//         }
 
-            // Look up the week day memos IndexMap and concatenate memos.
-            let current_memo = week_memos.entry(week_day).or_insert(String::from(""));
-            // Implement max width
-            for chunk in memo.as_bytes().chunks(MAX_WIDTH) {
-                let chunk_str = str::from_utf8(chunk)?;
-                (*current_memo).push_str(chunk_str);
-                if !(chunk_str.len() < MAX_WIDTH) {
-                    (*current_memo).push_str("\n");
-                }
-            }
-            (*current_memo).push_str("; ");
-            (*current_memo).push_str("\n");
-        }
+//         // Iterate over hashmap hour values and add to cells.
+//         for hour in week_hours.values() {
+//             if *hour > 0.0 {
+//                 all_zeros = false;
+//             }
+//             time_cells.push(Cell::new(&hour.to_string()));
+//         }
 
-        // Iterate over hashmap hour values and add to cells.
-        for hour in week_hours.values() {
-            if *hour > 0.0 {
-                all_zeros = false;
-            }
-            time_cells.push(Cell::new(&hour.to_string()));
-        }
+//         for memo in week_memos.values() {
+//             if ! (*memo).is_empty() {
+//                 no_memos = false;
+//             }
+//             memo_cells.push(Cell::new(&memo.to_string()));
+//         }
 
-        for memo in week_memos.values() {
-            if ! (*memo).is_empty() {
-                no_memos = false;
-            } 
-            memo_cells.push(Cell::new(&memo.to_string()));
-        }
+//         // Only add rows with at least one non-zero value.
+//         if !all_zeros {
+//             table.add_row(Row::new(time_cells.clone()));
+//         }
 
-        // Only add rows with at least one non-zero value.
-        if !all_zeros {
-            table.add_row(Row::new(time_cells.clone()));
-        }
+//         if !no_memos && with_memos {
+//             table.add_row(Row::new(memo_cells.clone()));
+//         }
 
-        if !no_memos && with_memos {
-            table.add_row(Row::new(memo_cells.clone()));
-        }
+//     }
+//     table.printstd();
 
-    }
-    table.printstd();
+//     Ok(())
+// }
 
-    Ok(())
-}
+// pub fn display_last_entry(conn: &Connection) -> SqlResult<()> {
+//     let query = "SELECT * FROM entries ORDER BY id DESC LIMIT 1";
+//     let mut stmt = conn.prepare(&query)?;
+//     let mut rows = stmt.query(NO_PARAMS)?;
 
-pub fn display_last_entry(conn: &Connection) -> SqlResult<()> {
-    let query = "SELECT * FROM entries ORDER BY id DESC LIMIT 1";
-    let mut stmt = conn.prepare(&query)?;
-    let mut rows = stmt.query(NO_PARAMS)?;
+//     let mut table = Table::new();
+//     table.add_row(row![Fb => "Start Time", "Stop Time", "Week Day", "Code", "Memo"]);
+//     let mut cells: Vec<Cell> = Vec::new();
 
-    let mut table = Table::new();
-    table.add_row(row![Fb => "Start Time", "Stop Time", "Week Day", "Code", "Memo"]);
-    let mut cells: Vec<Cell> = Vec::new();
+//     while let Some(row) = rows.next()? {
+//         for i in 1..=5 {
+//             let value: String = row.get(i)?;
+//             cells.push(Cell::new(&value));
+//         }
+//     }
+//     table.add_row(Row::new(cells));
 
-    while let Some(row) = rows.next()? {
-        for i in 1..=5 {
-            let value: String = row.get(i)?;
-            cells.push(Cell::new(&value));
-        }
-    }
-    table.add_row(Row::new(cells));
+//     table.printstd();
 
-    table.printstd();
+//     Ok(())
+// }
 
-    Ok(())
-}
+// pub fn delete_last_entry(conn: &Connection) -> SqlResult<()> {
+//     conn.execute(
+//         "DELETE FROM entries WHERE id = (SELECT MAX(id) FROM entries LIMIT 1);",
+//         params![],
+//     )?;
+//     Ok(())
+// }
 
-pub fn delete_last_entry(conn: &Connection) -> SqlResult<()> {
-    conn.execute(
-        "DELETE FROM entries WHERE id = (SELECT MAX(id) FROM entries LIMIT 1);",
-        params![],
-    )?;
-    Ok(())
-}
+// pub fn add_new_project(conn: &Connection) -> SqlResult<()> {
+//     let mut name = String::new();
+//     let mut code = String::new();
 
-pub fn add_new_project(conn: &Connection) -> SqlResult<()> {
-    let mut name = String::new();
-    let mut code = String::new();
+//     print!("Project name: ");
+//     // Std out is line-buffered by default so flush to print output immediately.
+//     stdout().flush().unwrap();
+//     stdin()
+//         .read_line(&mut name)
+//         .expect("Failed to read from std in!");
 
-    print!("Project name: ");
-    // Std out is line-buffered by default so flush to print output immediately.
-    stdout().flush().unwrap();
-    stdin()
-        .read_line(&mut name)
-        .expect("Failed to read from std in!");
+//     print!("Project code (e.g.: 19-165): ");
+//     stdout().flush().unwrap();
+//     stdin()
+//         .read_line(&mut code)
+//         .expect("Failed to read from std in!");
 
-    print!("Project code (e.g.: 19-165): ");
-    stdout().flush().unwrap();
-    stdin()
-        .read_line(&mut code)
-        .expect("Failed to read from std in!");
+//     let stmt = format!(
+//         "INSERT INTO projects(name, code) VALUES('{}', '{}');",
+//         name.trim_end(),
+//         code.trim_end()
+//     );
+//     conn.execute(&stmt, params![])?;
 
-    let stmt = format!(
-        "INSERT INTO projects(name, code) VALUES('{}', '{}');",
-        name.trim_end(),
-        code.trim_end()
-    );
-    conn.execute(&stmt, params![])?;
+//     Ok(())
+// }
 
-    Ok(())
-}
+// pub fn list_projects(conn: &Connection) -> SqlResult<()> {
+//     let projects: Vec<Project> = read_projects(&conn)?;
 
-pub fn list_projects(conn: &Connection) -> SqlResult<()> {
-    let projects: Vec<Project> = read_projects(&conn)?;
+//     let mut table = Table::new();
+//     table.add_row(row![Fb => "Project Name", "Project Code"]);
 
-    let mut table = Table::new();
-    table.add_row(row![Fb => "Project Name", "Project Code"]);
+//     for project in projects {
+//         table.add_row(row![project.name, project.code]);
+//     }
+//     table.printstd();
 
-    for project in projects {
-        table.add_row(row![project.name, project.code]);
-    }
-    table.printstd();
+//     Ok(())
+// }
 
-    Ok(())
-}
+// pub fn delete_project(conn: &Connection) -> SqlResult<()> {
+//     let mut code = String::new();
+//     let mut confirmation = String::new();
 
-pub fn delete_project(conn: &Connection) -> SqlResult<()> {
-    let mut code = String::new();
-    let mut confirmation = String::new();
+//     print!("Project code to DELETE: ");
+//     stdout().flush().unwrap();
+//     stdin()
+//         .read_line(&mut code)
+//         .expect("Failed to read from std in!");
 
-    print!("Project code to DELETE: ");
-    stdout().flush().unwrap();
-    stdin()
-        .read_line(&mut code)
-        .expect("Failed to read from std in!");
+//     code = code.trim_end().to_string();
 
-    code = code.trim_end().to_string();
+//     print!("Are you sure you want to delete project: {}? Y/N  ", code);
+//     stdout().flush().unwrap();
+//     stdin()
+//         .read_line(&mut confirmation)
+//         .expect("Failed to read from std in!");
 
-    print!("Are you sure you want to delete project: {}? Y/N  ", code);
-    stdout().flush().unwrap();
-    stdin()
-        .read_line(&mut confirmation)
-        .expect("Failed to read from std in!");
+//     confirmation = confirmation.trim_end().to_lowercase();
 
-    confirmation = confirmation.trim_end().to_lowercase();
+//     if confirmation == "y" {
+//         // Check that project exists.
+//         let query = format!("SELECT * FROM projects WHERE code='{}';", code);
+//         let mut stmt = conn.prepare(&query)?;
+//         let mut rows = stmt.query(NO_PARAMS)?;
 
-    if confirmation == "y" {
-        // Check that project exists.
-        let query = format!("SELECT * FROM projects WHERE code='{}';", code);
-        let mut stmt = conn.prepare(&query)?;
-        let mut rows = stmt.query(NO_PARAMS)?;
+//         match rows.next()? {
+//             Some(_) => (),
+//             None => {
+//                 println!("No such project!");
+//                 return Ok(());
+//             }
+//         }
 
-        match rows.next()? {
-            Some(_) => (),
-            None => {
-                println!("No such project!");
-                return Ok(());
-            }
-        }
+//         let stmt = format!("DELETE FROM projects WHERE code='{}';", code);
+//         conn.execute(&stmt, params![])?;
+//         println!("Project deleted.");
+//     } else {
+//         println!("Canceled!");
+//     }
 
-        let stmt = format!("DELETE FROM projects WHERE code='{}';", code);
-        conn.execute(&stmt, params![])?;
-        println!("Project deleted.");
-    } else {
-        println!("Canceled!");
-    }
-
-    Ok(())
-}
+//     Ok(())
+// }

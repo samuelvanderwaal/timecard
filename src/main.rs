@@ -1,231 +1,241 @@
-#[macro_use]
-extern crate clap;
+use anyhow::{Result};
 
-use chrono::{Datelike, Duration, Local};
-use chrono::offset::TimeZone;
-use clap::{App, Arg};
-use rusqlite::{Connection, Result};
-use timecard::*;
+mod db;
 
-fn main() -> Result<()> {
-    let conn = establish_connection();
-
-    let matches = App::new("timecard")
-        .version(crate_version!())
-        .author("Samuel Vanderwaal")
-        .about("A time-tracking command line program.")
-        .arg(
-            Arg::with_name("entry")
-                .short("e")
-                .long("entry")
-                .value_names(&["start", "stop", "code", "memo"])
-                .help("Add a new time entry.")
-                .takes_value(true)
-                .value_delimiter(","),
-        )
-        .arg(
-            Arg::with_name("backdate")
-                .short("b")
-                .long("backdate")
-                .value_names(&["backdate", "start", "stop", "code", "memo"])
-                .help("Add a backdated entry.")
-                .takes_value(true)
-                .value_delimiter(","),
-        )
-        .arg(
-            Arg::with_name("week")
-                .short("w")
-                .long("week")
-                .takes_value(true)
-                .help("Print weekly report."),
-        )
-        .arg(
-            Arg::with_name("with_memos")
-                .short("m")
-                .long("with-memos")
-                .help("Use with '-w`. Adds memos to weekly report.")
-        )
-        .arg(
-            Arg::with_name("last_entry")
-                .short("l")
-                .long("last")
-                .help("Display most recent entry."),
-        )
-        .arg(
-            Arg::with_name("delete_entry")
-                .short("d")
-                .long("delete")
-                .help("Delete the most recent entry."),
-        )
-        .arg(
-            Arg::with_name("add_project")
-                .short("a")
-                .long("add-project")
-                .help("Add a new project to the reference table."),
-        )
-        .arg(
-            Arg::with_name("list_projects")
-                .short("p")
-                .long("list-projects")
-                .help("List all projects in the reference table."),
-        )
-        .arg(
-            Arg::with_name("delete_project")
-                .long("delete-project")
-                .help("Delete project from the reference table."),
-        )
-        .get_matches();
-
-    if let Some(values) = matches.values_of("entry") {
-        process_new_entry(values.collect(), &conn);
-    }
-
-    if let Some(values) = matches.values_of("backdate") {
-        backdated_entry(values.collect(), &conn);
-    } 
-
-    if let Some(value) = matches.value_of("week") {
-        let mut memos = false;
-        let num = match value.parse::<i64>() {
-            Ok(n) => n,
-            Err(_) => {
-                println!("Error: value must be an integer.");
-                std::process::exit(1);
-            }
-        };
-        if matches.is_present("with_memos") {
-            memos = true;
-        }
-        match create_weekly_report(&conn, num, memos) {
-            Ok(()) => (),
-            Err(e) => println!("Error: {:?}", e),
-        }
-    }
-
-    if matches.is_present("last_entry") {
-        match display_last_entry(&conn) {
-            Ok(()) => (),
-            Err(e) => println!("Error: {:?}", e),
-        }
-    }
-
-    if matches.is_present("delete_entry") {
-        match delete_last_entry(&conn) {
-            Ok(()) => println!("Most recent entry deleted."),
-            Err(e) => println!("Error: {:?}", e),
-        }
-    }
-
-    if matches.is_present("add_project") {
-        match add_new_project(&conn) {
-            Ok(()) => println!("Project added."),
-            Err(e) => println!("Error: {:?}", e),
-        }
-    }
-
-    if matches.is_present("list_projects") {
-        match list_projects(&conn) {
-            Ok(()) => (),
-            Err(e) => println!("Error: {:?}", e),
-        }
-    }
-
-    if matches.is_present("delete_project") {
-        match delete_project(&conn) {
-            Ok(()) => (),
-            Err(e) => println!("Error: {:?}", e),
-        }
-    }
-
+#[async_std::main]
+async fn main() -> Result<()> {
+    let _ = db::setup_conn().await?;
     Ok(())
 }
 
-fn process_new_entry(values: Vec<&str>, conn: &Connection) {
-    let now = Local::now();
-    let year = now.year();
-    let month = now.month();
-    let day = now.day();
+// #[macro_use]
+// extern crate clap;
 
-    let (start_hour, start_minute) = parse_entry_time(values[0].to_owned());
-    let (stop_hour, stop_minute) = parse_entry_time(values[1].to_owned());
+// use chrono::{Datelike, Duration, Local};
+// use chrono::offset::TimeZone;
+// use clap::{App, Arg};
+// use rusqlite::{Connection, Result};
+// use timecard::*;
 
-    let start = format!(
-        "{}-{:02}-{:02} {:02}:{:02}:{:02}",
-        year, month, day, start_hour, start_minute, 0
-    );
-    let stop = format!(
-        "{}-{:02}-{:02} {:02}:{:02}:{:02}",
-        year, month, day, stop_hour, stop_minute, 0
-    );
+// fn main() -> Result<()> {
+//     let conn = establish_connection();
 
-    let week_day: String = Local::today().weekday().to_string();
-    let code = values[2].to_owned();
-    let memo = values[3].to_owned();
+//     let matches = App::new("timecard")
+//         .version(crate_version!())
+//         .author("Samuel Vanderwaal")
+//         .about("A time-tracking command line program.")
+//         .arg(
+//             Arg::with_name("entry")
+//                 .short("e")
+//                 .long("entry")
+//                 .value_names(&["start", "stop", "code", "memo"])
+//                 .help("Add a new time entry.")
+//                 .takes_value(true)
+//                 .value_delimiter(","),
+//         )
+//         .arg(
+//             Arg::with_name("backdate")
+//                 .short("b")
+//                 .long("backdate")
+//                 .value_names(&["backdate", "start", "stop", "code", "memo"])
+//                 .help("Add a backdated entry.")
+//                 .takes_value(true)
+//                 .value_delimiter(","),
+//         )
+//         .arg(
+//             Arg::with_name("week")
+//                 .short("w")
+//                 .long("week")
+//                 .takes_value(true)
+//                 .help("Print weekly report."),
+//         )
+//         .arg(
+//             Arg::with_name("with_memos")
+//                 .short("m")
+//                 .long("with-memos")
+//                 .help("Use with '-w`. Adds memos to weekly report.")
+//         )
+//         .arg(
+//             Arg::with_name("last_entry")
+//                 .short("l")
+//                 .long("last")
+//                 .help("Display most recent entry."),
+//         )
+//         .arg(
+//             Arg::with_name("delete_entry")
+//                 .short("d")
+//                 .long("delete")
+//                 .help("Delete the most recent entry."),
+//         )
+//         .arg(
+//             Arg::with_name("add_project")
+//                 .short("a")
+//                 .long("add-project")
+//                 .help("Add a new project to the reference table."),
+//         )
+//         .arg(
+//             Arg::with_name("list_projects")
+//                 .short("p")
+//                 .long("list-projects")
+//                 .help("List all projects in the reference table."),
+//         )
+//         .arg(
+//             Arg::with_name("delete_project")
+//                 .long("delete-project")
+//                 .help("Delete project from the reference table."),
+//         )
+//         .get_matches();
 
-    let new_entry = NewEntry {
-        start,
-        stop,
-        week_day,
-        code,
-        memo,
-    };
+//     if let Some(values) = matches.values_of("entry") {
+//         process_new_entry(values.collect(), &conn);
+//     }
 
-    match write_entry(conn, &new_entry) {
-        Ok(_) => println!("Entry submitted."),
-        Err(e) => println!("Error writing entry: {:?}", e),
-    }
-}
+//     if let Some(values) = matches.values_of("backdate") {
+//         backdated_entry(values.collect(), &conn);
+//     } 
 
-fn backdated_entry(values: Vec<&str>, conn: &Connection) {
-    let date = match values[0] {
-        "today" => Local::today(),
-        "yesterday" => Local::today() - Duration::days(1),
-        "tomorrow" => Local::today() + Duration::days(1),
-        _ => {
-            let date_values: Vec<&str> = values[0].split("-").collect();
-            let year: i32 = date_values[0].parse().unwrap();
-            let month: u32 = date_values[1].parse().unwrap();
-            let day: u32 = date_values[2].parse().unwrap();
+//     if let Some(value) = matches.value_of("week") {
+//         let mut memos = false;
+//         let num = match value.parse::<i64>() {
+//             Ok(n) => n,
+//             Err(_) => {
+//                 println!("Error: value must be an integer.");
+//                 std::process::exit(1);
+//             }
+//         };
+//         if matches.is_present("with_memos") {
+//             memos = true;
+//         }
+//         match create_weekly_report(&conn, num, memos) {
+//             Ok(()) => (),
+//             Err(e) => println!("Error: {:?}", e),
+//         }
+//     }
 
-            Local.ymd(year, month, day)
-            }, 
-    };
+//     if matches.is_present("last_entry") {
+//         match display_last_entry(&conn) {
+//             Ok(()) => (),
+//             Err(e) => println!("Error: {:?}", e),
+//         }
+//     }
 
-    let year = date.year();
-    let month = date.month();
-    let day = date.day();
+//     if matches.is_present("delete_entry") {
+//         match delete_last_entry(&conn) {
+//             Ok(()) => println!("Most recent entry deleted."),
+//             Err(e) => println!("Error: {:?}", e),
+//         }
+//     }
 
-    let (start_hour, start_minute) = parse_entry_time(values[1].to_owned());
-    let (stop_hour, stop_minute) = parse_entry_time(values[2].to_owned());
+//     if matches.is_present("add_project") {
+//         match add_new_project(&conn) {
+//             Ok(()) => println!("Project added."),
+//             Err(e) => println!("Error: {:?}", e),
+//         }
+//     }
 
-    let start = format!(
-        "{}-{:02}-{:02} {:02}:{:02}:{:02}",
-        year, month, day, start_hour, start_minute, 0
-    );
-    let stop = format!(
-        "{}-{:02}-{:02} {:02}:{:02}:{:02}",
-        year, month, day, stop_hour, stop_minute, 0
-    );
+//     if matches.is_present("list_projects") {
+//         match list_projects(&conn) {
+//             Ok(()) => (),
+//             Err(e) => println!("Error: {:?}", e),
+//         }
+//     }
 
-    let week_day: String = date.weekday().to_string();
-    let code = values[3].to_owned();
-    let memo = values[4].to_owned();
+//     if matches.is_present("delete_project") {
+//         match delete_project(&conn) {
+//             Ok(()) => (),
+//             Err(e) => println!("Error: {:?}", e),
+//         }
+//     }
 
-    let new_entry = NewEntry {
-        start,
-        stop,
-        week_day,
-        code,
-        memo,
-    };
+//     Ok(())
+// }
 
-    match write_entry(conn, &new_entry) {
-        Ok(_) => println!("Entry submitted."),
-        Err(e) => println!("Error writing entry: {:?}", e),
-    }
-}
+// fn process_new_entry(values: Vec<&str>, conn: &Connection) {
+//     let now = Local::now();
+//     let year = now.year();
+//     let month = now.month();
+//     let day = now.day();
 
-fn parse_entry_time(time_str: String) -> (u32, u32) {
-    let time = time_str.parse::<u32>().expect("Failed to parse time!");
-    (time / 100, time % 100)
-}
+//     let (start_hour, start_minute) = parse_entry_time(values[0].to_owned());
+//     let (stop_hour, stop_minute) = parse_entry_time(values[1].to_owned());
+
+//     let start = format!(
+//         "{}-{:02}-{:02} {:02}:{:02}:{:02}",
+//         year, month, day, start_hour, start_minute, 0
+//     );
+//     let stop = format!(
+//         "{}-{:02}-{:02} {:02}:{:02}:{:02}",
+//         year, month, day, stop_hour, stop_minute, 0
+//     );
+
+//     let week_day: String = Local::today().weekday().to_string();
+//     let code = values[2].to_owned();
+//     let memo = values[3].to_owned();
+
+//     let new_entry = NewEntry {
+//         start,
+//         stop,
+//         week_day,
+//         code,
+//         memo,
+//     };
+
+//     match write_entry(conn, &new_entry) {
+//         Ok(_) => println!("Entry submitted."),
+//         Err(e) => println!("Error writing entry: {:?}", e),
+//     }
+// }
+
+// fn backdated_entry(values: Vec<&str>, conn: &Connection) {
+//     let date = match values[0] {
+//         "today" => Local::today(),
+//         "yesterday" => Local::today() - Duration::days(1),
+//         "tomorrow" => Local::today() + Duration::days(1),
+//         _ => {
+//             let date_values: Vec<&str> = values[0].split("-").collect();
+//             let year: i32 = date_values[0].parse().unwrap();
+//             let month: u32 = date_values[1].parse().unwrap();
+//             let day: u32 = date_values[2].parse().unwrap();
+
+//             Local.ymd(year, month, day)
+//             }, 
+//     };
+
+//     let year = date.year();
+//     let month = date.month();
+//     let day = date.day();
+
+//     let (start_hour, start_minute) = parse_entry_time(values[1].to_owned());
+//     let (stop_hour, stop_minute) = parse_entry_time(values[2].to_owned());
+
+//     let start = format!(
+//         "{}-{:02}-{:02} {:02}:{:02}:{:02}",
+//         year, month, day, start_hour, start_minute, 0
+//     );
+//     let stop = format!(
+//         "{}-{:02}-{:02} {:02}:{:02}:{:02}",
+//         year, month, day, stop_hour, stop_minute, 0
+//     );
+
+//     let week_day: String = date.weekday().to_string();
+//     let code = values[3].to_owned();
+//     let memo = values[4].to_owned();
+
+//     let new_entry = NewEntry {
+//         start,
+//         stop,
+//         week_day,
+//         code,
+//         memo,
+//     };
+
+//     match write_entry(conn, &new_entry) {
+//         Ok(_) => println!("Entry submitted."),
+//         Err(e) => println!("Error writing entry: {:?}", e),
+//     }
+// }
+
+// fn parse_entry_time(time_str: String) -> (u32, u32) {
+//     let time = time_str.parse::<u32>().expect("Failed to parse time!");
+//     (time / 100, time % 100)
+// }
