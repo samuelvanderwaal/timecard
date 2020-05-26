@@ -1,13 +1,15 @@
-#![allow(dead_code)]
-
 use dotenv::dotenv;
 use std::env;
 
+use serde::{Serialize, Deserialize};
 use anyhow::{Context, Result};
+
 use sqlx::sqlite::SqlitePool;
 use sqlx::sqlite::SqliteQueryAs;
 
-#[derive(Debug, Clone, PartialEq)]
+use fake::{Dummy, Fake};
+
+#[derive(Debug, Dummy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {
     pub id: Option<i32>,
     pub start: String,
@@ -17,7 +19,7 @@ pub struct Entry {
     pub memo: String,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Dummy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Project {
     pub id: Option<i32>,
     pub name: String,
@@ -31,10 +33,10 @@ pub async fn setup_pool() -> Result<SqlitePool> {
     Ok(SqlitePool::new(&db_url).await?)
 }
 
-pub async fn read_entry(pool: &SqlitePool, id: i32) -> Result<Entry> {
+pub async fn read_entry(conn: &SqlitePool, id: i32) -> Result<Entry> {
     Ok(
         sqlx::query_as!(Entry, "select * from entries where id = ?", id)
-            .fetch_one(pool)
+            .fetch_one(conn)
             .await?,
     )
 }
@@ -142,19 +144,19 @@ pub async fn delete_project(pool: &SqlitePool, id: i32) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
 
-    async fn setup_db() -> Result<SqlitePool> {
+    pub async fn setup_test_db() -> Result<SqlitePool> {
         let db_name: String = random_name();
         let pool = SqlitePool::new(&format!("sqlite:///tmp/{}_test.db", db_name)).await?;
 
         Ok(pool)
     }
 
-    async fn setup_entries_table(pool: &SqlitePool) -> Result<()> {
+    pub async fn setup_entries_table(pool: &SqlitePool) -> Result<()> {
         sqlx::query(
             "CREATE TABLE entries(
                 id INTEGER PRIMARY KEY,
@@ -170,7 +172,7 @@ mod tests {
         Ok(())
     }
 
-    async fn setup_projects_table(pool: &SqlitePool) -> Result<()> {
+    pub async fn setup_projects_table(pool: &SqlitePool) -> Result<()> {
         sqlx::query(
             "CREATE TABLE projects(
                 id INTEGER PRIMARY KEY,
@@ -189,7 +191,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_and_read_entry() -> Result<()> {
-        let pool = setup_db().await?;
+        let pool = setup_test_db().await?;
         setup_entries_table(&pool).await?;
 
         let mut exp_entry = Entry {
@@ -212,7 +214,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_read_all_entries() -> Result<()> {
-        let pool = setup_db().await?;
+        let pool = setup_test_db().await?;
         setup_entries_table(&pool).await?;
 
         let mut exp_entry1 = Entry {
@@ -249,7 +251,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_entry() -> Result<()> {
-        let pool = setup_db().await?;
+        let pool = setup_test_db().await?;
         setup_entries_table(&pool).await?;
 
         let mut exp_entry = Entry {
@@ -278,7 +280,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_entry() -> Result<()> {
-        let pool = setup_db().await?;
+        let pool = setup_test_db().await?;
         setup_entries_table(&pool).await?;
 
         let mut exp_entry = Entry {
@@ -301,7 +303,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_write_and_read_project() -> Result<()> {
-        let pool = setup_db().await?;
+        let pool = setup_test_db().await?;
         setup_projects_table(&pool).await?;
 
         let mut exp_project = Project {
@@ -321,7 +323,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_read_all_projects() -> Result<()> {
-        let pool = setup_db().await?;
+        let pool = setup_test_db().await?;
         setup_projects_table(&pool).await?;
 
         let mut exp_project1 = Project {
@@ -352,7 +354,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_update_project() -> Result<()> {
-        let pool = setup_db().await?;
+        let pool = setup_test_db().await?;
         setup_projects_table(&pool).await?;
 
         let mut exp_project = Project {
@@ -378,7 +380,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_project() -> Result<()> {
-        let pool = setup_db().await?;
+        let pool = setup_test_db().await?;
         setup_projects_table(&pool).await?;
 
         let mut exp_project = Project {
