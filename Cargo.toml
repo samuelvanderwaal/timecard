@@ -4,6 +4,14 @@ version = "0.4.1"
 authors = ["Samuel J Vanderwaal <samuel.vanderwaal@gmail.com>"]
 edition = "2018"
 
+[[bin]]
+name = "server"
+path = "src/server/bin/main.rs"
+
+[[bin]]
+name = "cli"
+path = "src/cli/bin/main.rs"
+
 [dependencies]
 clap = "2.33.1"
 chrono = "0.4.10"
