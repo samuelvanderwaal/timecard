@@ -1,8 +1,9 @@
 use dotenv::dotenv;
 use std::env;
 
-use serde::{Serialize, Deserialize};
 use anyhow::{Context, Result};
+use serde::{Deserialize, Serialize};
+use chrono::{Datelike, Duration, Local, Timelike};
 
 use sqlx::sqlite::SqlitePool;
 use sqlx::sqlite::SqliteQueryAs;
@@ -33,10 +34,10 @@ pub async fn setup_pool() -> Result<SqlitePool> {
     Ok(SqlitePool::new(&db_url).await?)
 }
 
-pub async fn read_entry(conn: &SqlitePool, id: i32) -> Result<Entry> {
+pub async fn read_entry(pool: &SqlitePool, id: i32) -> Result<Entry> {
     Ok(
         sqlx::query_as!(Entry, "select * from entries where id = ?", id)
-            .fetch_one(conn)
+            .fetch_one(pool)
             .await?,
     )
 }
@@ -45,6 +46,22 @@ pub async fn read_all_entries(pool: &SqlitePool) -> Result<Vec<Entry>> {
     Ok(sqlx::query_as!(Entry, "select * from entries")
         .fetch_all(pool)
         .await?)
+}
+
+pub async fn read_entries_between(
+    pool: &SqlitePool,
+    code: String,
+    start_date: String,
+    end_date: String,
+) -> Result<Vec<Entry>> {
+    Ok(
+        sqlx::query_as!(
+            Entry,
+            "SELECT * FROM entries WHERE code=? AND start >= ? AND start <= ?",
+            code, start_date, end_date)
+        .fetch_all(pool)
+        .await?
+    )
 }
 
 pub async fn write_entry(pool: &SqlitePool, entry: &Entry) -> Result<i32> {
@@ -186,7 +203,14 @@ pub mod tests {
     }
 
     fn random_name() -> String {
-        thread_rng().sample_iter(&Alphanumeric).take(10).collect()
+        thread_rng().sample_iter(&Alphanumeric).take(16).collect()
+    }
+
+    fn iso8601_to_db_format<T: Timelike + Datelike>(date: T) -> String {
+        format!(
+            "{}-{:02}-{:02} {:02}:{:02}:{:02}",
+            date.year(), date.month(), date.day(), date.hour(), date.minute(), 0
+        )
     }
 
     #[tokio::test]
@@ -245,6 +269,87 @@ pub mod tests {
 
         assert_eq!(entries[0], exp_entry1);
         assert_eq!(entries[1], exp_entry2);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_read_entries_between() -> Result<()> {
+        let pool = setup_test_db().await?;
+        setup_entries_table(&pool).await?;
+
+        let code = "20-008".to_string();
+
+        let start_date = Local::now() - Duration::days(7);
+        let end_date = Local::now();
+
+        let invalid_date1 = Local::now() - Duration::days(8);
+        let invalid_weekday1 = invalid_date1.weekday().to_string();
+        let invalid_start1 = iso8601_to_db_format(invalid_date1);
+        let invalid_stop1 = iso8601_to_db_format(invalid_date1 + Duration::hours(2));
+
+        let invalid_date2 = Local::now() - Duration::days(11);
+        let invalid_weekday2 = invalid_date2.weekday().to_string();
+        let invalid_start2 = iso8601_to_db_format(invalid_date2);
+        let invalid_stop2 = iso8601_to_db_format(invalid_date2 + Duration::hours(2));
+
+        let valid_date1 = start_date + Duration::days(2);
+        let valid_weekday1 = valid_date1.weekday().to_string();
+        let valid_start1 = iso8601_to_db_format(valid_date1);
+        let valid_stop1 = iso8601_to_db_format(valid_date1 + Duration::hours(2));
+
+        let valid_date2 = start_date + Duration::days(5);
+        let valid_weekday2 = valid_date2.weekday().to_string();
+        let valid_start2 = iso8601_to_db_format(valid_date2);
+        let valid_stop2 = iso8601_to_db_format(valid_date2 + Duration::hours(2));
+
+        let mut invalid_entry1 = Entry {
+            id: None,
+            start: invalid_start1,
+            stop: invalid_stop1,
+            week_day: invalid_weekday1,
+            code: code.clone(),
+            memo: "work, work, work".to_string(),
+        };
+
+        let mut invalid_entry2 = Entry {
+            id: None,
+            start: invalid_start2,
+            stop: invalid_stop2,
+            week_day: invalid_weekday2,
+            code: code.clone(),
+            memo: "work, work, work".to_string(),
+        };
+
+        let mut valid_entry1 = Entry {
+            id: None,
+            start: valid_start1,
+            stop: valid_stop1,
+            week_day: valid_weekday1,
+            code: code.clone(),
+            memo: "work, work, work".to_string(),
+        };
+
+        let mut valid_entry2 = Entry {
+            id: None,
+            start: valid_start2,
+            stop: valid_stop2,
+            week_day: valid_weekday2,
+            code: code.clone(),
+            memo: "work, work, work".to_string(),
+        };
+
+        invalid_entry1.id = Some(write_entry(&pool, &invalid_entry1).await?);
+        invalid_entry2.id = Some(write_entry(&pool, &invalid_entry2).await?);
+        valid_entry1.id = Some(write_entry(&pool, &valid_entry1).await?);
+        valid_entry2.id = Some(write_entry(&pool, &valid_entry2).await?);
+
+        let entries = read_entries_between(&pool, code.clone(), start_date.to_string(), end_date.to_string()).await?;
+
+        assert!(entries.len() == 2);
+
+        assert_eq!(entries[0], valid_entry1);
+        assert_eq!(entries[1], valid_entry2);
 
         Ok(())
     }
@@ -397,5 +502,4 @@ pub mod tests {
 
         Ok(())
     }
-
 }

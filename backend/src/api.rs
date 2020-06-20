@@ -26,6 +26,7 @@ pub fn post_entry(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, E
         .and(with_pool(pool))
         .and_then(new_entry)
 }
+
 pub fn get_entry(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::get()
         // .and(warp::path!("entry" / i32))
@@ -58,6 +59,7 @@ pub fn post_project(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply,
         .and(with_pool(pool))
         .and_then(new_project)
 }
+
 pub fn get_project(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::get()
         .and(warp::path("project"))
@@ -283,7 +285,7 @@ mod tests {
 
         Ok(())
     }
-    
+   
     #[tokio::test]
     async fn test_get_project() -> Result<()> {
         let pool = db::tests::setup_test_db().await?;
