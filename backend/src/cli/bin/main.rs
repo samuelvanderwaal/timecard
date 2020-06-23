@@ -7,14 +7,17 @@ extern crate prettytable;
 #[macro_use]
 extern crate indexmap;
 
-use std::collections::{HashMap, HashSet};
-use indexmap::IndexMap;
 use anyhow::Result;
-use clap::{App, Arg};
 use chrono::{Datelike, Duration, Local, NaiveDateTime};
 use chrono::offset::TimeZone;
 use sqlx::sqlite::SqlitePool;
-use prettytable::{Cell, Row, Table};
+use clap::{App, Arg};
+
+use std::collections::{HashMap, HashSet};
+use indexmap::IndexMap;
+use std::str;
+
+use prettytable::{Attr, color, Cell, Row, Table};
 
 use timecard::db::{self, Entry};
 
@@ -33,15 +36,21 @@ lazy_static! {
 }
 
 static DATE_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+const MAX_WIDTH: usize = 20;
 
-struct TableRowData {
+struct HourRowData {
     project: String,
     hours: IndexMap<String, f64>,
 }
 
-impl TableRowData {
+struct MemoRowData {
+    project: String,
+    memos: IndexMap<String, String>,
+}
+
+impl HourRowData {
     fn new() -> Self {
-        TableRowData {
+        HourRowData {
             project: String::new(),
             hours: indexmap!{
                 "Sun".to_string() => 0.0,
@@ -51,15 +60,53 @@ impl TableRowData {
                 "Thu".to_string() => 0.0,
                 "Fri".to_string() => 0.0,
                 "Sat".to_string() => 0.0,
-            },            
+            }
         }
     }
 
-    fn convert_to_row(&self) -> Row {
+    fn convert_to_row(&self, text_color: color::Color) -> Row {
         let mut cells: Vec<Cell> = Vec::new();
-        cells.push(Cell::new(&self.project));
+        cells.push(
+            Cell::new(&self.project)
+                .with_style(Attr::ForegroundColor(text_color))
+        );
         for (_, value) in self.hours.iter() {
-            cells.push(Cell::new(&value.to_string()));
+            cells.push(
+                Cell::new(&value.to_string())
+                    .with_style(Attr::ForegroundColor(text_color))
+            );
+        }
+        Row::new(cells)
+    }
+}
+
+impl MemoRowData {
+    fn new() -> Self {
+        MemoRowData {
+            project: String::new(),
+            memos: indexmap!{
+                "Sun".to_string() => String::from(""),
+                "Mon".to_string() => String::from(""),
+                "Tue".to_string() => String::from(""),
+                "Wed".to_string() => String::from(""),
+                "Thu".to_string() => String::from(""),
+                "Fri".to_string() => String::from(""),
+                "Sat".to_string() => String::from(""),
+            },
+        }
+    }
+
+    fn convert_to_row(&self, text_color: color::Color) -> Row {
+        let mut cells: Vec<Cell> = Vec::new();
+        cells.push(
+            Cell::new(&self.project)
+                .with_style(Attr::ForegroundColor(text_color))
+        );
+        for (_, value) in self.memos.iter() {
+            cells.push(
+                Cell::new(&value)
+                    .with_style(Attr::ForegroundColor(text_color))
+            );
         }
         Row::new(cells)
     }
@@ -255,7 +302,7 @@ fn entry_time_to_full_date<T: Datelike>(date: T, hour: u32, minute: u32) -> Stri
     )
 }
 
-async fn create_weekly_report(pool: &SqlitePool, num_weeks: i64, _with_memos: bool) -> Result<()> {
+async fn create_weekly_report(pool: &SqlitePool, num_weeks: i64, with_memos: bool) -> Result<()> {
     let parse_from_str = NaiveDateTime::parse_from_str;
     
     let day_of_week: String = Local::today().weekday().to_string();
@@ -265,32 +312,52 @@ async fn create_weekly_report(pool: &SqlitePool, num_weeks: i64, _with_memos: bo
 
     let entries = db::read_entries_between(pool, week_beginning.to_string(), week_ending.to_string()).await?;
 
-    // Set up table for printing
     let mut table = Table::new();
     table.add_row(row![Fb => "Project", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
 
     let mut codes: HashSet<String> = HashSet::new();
-
     for entry in &entries {
         codes.insert(entry.code.clone());
     } 
 
+    for (index, code) in codes.iter().enumerate() {
+        let mut hour_data = HourRowData::new();
+        let mut memo_data = MemoRowData::new();
+        hour_data.project = code.clone();
+        memo_data.project = code.clone();
 
-    for code in codes {
-        let mut data = TableRowData::new();
-        data.project = code.clone();
-
-        let project_entries = entries.iter().filter(|entry| entry.code == code);
+        let project_entries = entries.iter().filter(|entry| &entry.code == code);
 
         for entry in project_entries {
-                let count = data.hours.entry(entry.week_day.clone()).or_insert(0.0);
                 let start: NaiveDateTime =
                     parse_from_str(&entry.start, DATE_FORMAT).expect("Parsing error!");
                 let stop: NaiveDateTime =
                     parse_from_str(&entry.stop, DATE_FORMAT).expect("Parsing error!");
-                *count += stop.signed_duration_since(start).num_minutes() as f64 / 60.0;
+                let h = hour_data.hours.entry(entry.week_day.clone()).or_insert(0.0);
+                *h += stop.signed_duration_since(start).num_minutes() as f64 / 60.0;
+                
+                let current_memo = memo_data.memos.entry(entry.week_day.clone()).or_insert(String::from(""));
+                // Implement max width
+                for chunk in entry.memo.as_bytes().chunks(MAX_WIDTH) {
+                    let chunk_str = str::from_utf8(chunk)?;
+                    (*current_memo).push_str(chunk_str);
+                    if !(chunk_str.len() < MAX_WIDTH) {
+                        (*current_memo).push_str("\n");
+                    }
+                }
+                (*current_memo).push_str("; ");
+                (*current_memo).push_str("\n");
         }
-        table.add_row(data.convert_to_row());
+        let mut text_color = color::WHITE;
+        if index % 2 == 1 {
+            text_color = color::MAGENTA;
+        } 
+        
+        table.add_row(hour_data.convert_to_row(text_color));
+
+        if with_memos {
+            table.add_row(memo_data.convert_to_row(text_color));
+        }
     }
     table.printstd();
 
