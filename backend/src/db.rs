@@ -3,7 +3,6 @@ use std::env;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use chrono::{Datelike, Duration, Local, Timelike};
 
 use sqlx::sqlite::SqlitePool;
 use sqlx::sqlite::SqliteQueryAs;
@@ -50,15 +49,14 @@ pub async fn read_all_entries(pool: &SqlitePool) -> Result<Vec<Entry>> {
 
 pub async fn read_entries_between(
     pool: &SqlitePool,
-    code: String,
     start_date: String,
     end_date: String,
 ) -> Result<Vec<Entry>> {
     Ok(
         sqlx::query_as!(
             Entry,
-            "SELECT * FROM entries WHERE code=? AND start >= ? AND start <= ?",
-            code, start_date, end_date)
+            "SELECT * FROM entries WHERE start >= ? AND start <= ?",
+            start_date, end_date)
         .fetch_all(pool)
         .await?
     )
@@ -344,7 +342,7 @@ pub mod tests {
         valid_entry1.id = Some(write_entry(&pool, &valid_entry1).await?);
         valid_entry2.id = Some(write_entry(&pool, &valid_entry2).await?);
 
-        let entries = read_entries_between(&pool, code.clone(), start_date.to_string(), end_date.to_string()).await?;
+        let entries = read_entries_between(&pool, start_date.to_string(), end_date.to_string()).await?;
 
         assert!(entries.len() == 2);
 
