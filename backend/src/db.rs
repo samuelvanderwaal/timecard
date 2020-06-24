@@ -4,8 +4,7 @@ use std::env;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-use sqlx::sqlite::SqlitePool;
-use sqlx::sqlite::SqliteQueryAs;
+use sqlx::sqlite::{SqlitePool, SqliteQueryAs};
 
 use fake::{Dummy, Fake};
 
@@ -36,6 +35,14 @@ pub async fn setup_pool() -> Result<SqlitePool> {
 pub async fn read_entry(pool: &SqlitePool, id: i32) -> Result<Entry> {
     Ok(
         sqlx::query_as!(Entry, "select * from entries where id = ?", id)
+            .fetch_one(pool)
+            .await?,
+    )
+}
+
+pub async fn read_last_entry(pool: &SqlitePool) -> Result<Entry> {
+    Ok(
+        sqlx::query_as!(Entry, "select * from entries order by id desc limit 1")
             .fetch_one(pool)
             .await?,
     )
@@ -106,6 +113,14 @@ pub async fn delete_entry(pool: &SqlitePool, id: i32) -> Result<()> {
     Ok(())
 }
 
+pub async fn delete_last_entry(pool: &SqlitePool) -> Result<()> {
+    sqlx::query!("DELETE FROM entries WHERE id = (SELECT MAX(id) FROM entries LIMIT 1);")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
 pub async fn read_project(pool: &SqlitePool, id: i32) -> Result<Project> {
     Ok(
         sqlx::query_as!(Project, "select * from projects where id = ?", id)
@@ -161,6 +176,7 @@ pub async fn delete_project(pool: &SqlitePool, id: i32) -> Result<()> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use chrono::{Datelike, Duration, Local, Timelike};
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
 
@@ -230,6 +246,39 @@ pub mod tests {
 
         let entry = read_entry(&pool, id).await?;
         assert_eq!(entry, exp_entry);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_read_last_entry() -> Result<()> {
+        let pool = setup_test_db().await?;
+        setup_entries_table(&pool).await?;
+
+        let entry = Entry {
+            id: None,
+            start: "0900".to_string(),
+            stop: "1000".to_string(),
+            week_day: "WED".to_string(),
+            code: "20-008".to_string(),
+            memo: "work, work, work".to_string(),
+        };
+
+        let mut last_entry = Entry {
+            id: None,
+            start: "1300".to_string(),
+            stop: "1530".to_string(),
+            week_day: "FRI".to_string(),
+            code: "20-000-00".to_string(),
+            memo: "work, work, work".to_string(),
+        };
+
+        write_entry(&pool, &entry).await?;
+        let id = write_entry(&pool, &last_entry).await?;
+        last_entry.id = Some(id);
+
+        let entry = read_last_entry(&pool).await?;
+        assert_eq!(entry, last_entry);
 
         Ok(())
     }
@@ -400,6 +449,39 @@ pub mod tests {
 
         delete_entry(&pool, id).await?;
         assert!(read_entry(&pool, id).await.is_err());
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_delete_last_entry() -> Result<()> {
+        let pool = setup_test_db().await?;
+        setup_entries_table(&pool).await?;
+
+        let entry = Entry {
+            id: None,
+            start: "0900".to_string(),
+            stop: "1000".to_string(),
+            week_day: "WED".to_string(),
+            code: "20-008".to_string(),
+            memo: "work, work, work".to_string(),
+        };
+
+        let last_entry = Entry {
+            id: None,
+            start: "1300".to_string(),
+            stop: "1530".to_string(),
+            week_day: "FRI".to_string(),
+            code: "20-000-00".to_string(),
+            memo: "work, work, work".to_string(),
+        };
+
+        let id1 = write_entry(&pool, &entry).await?;
+        let id2 = write_entry(&pool, &last_entry).await?;
+
+        delete_last_entry(&pool).await?;
+        assert!(read_entry(&pool, id1).await.is_ok());
+        assert!(read_entry(&pool, id2).await.is_err());
 
         Ok(())
     }

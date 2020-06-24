@@ -158,7 +158,7 @@ async fn main() -> Result<()>{
                 .about("Display the most recent entry.")
         )
         .arg(
-            Arg::with_name("delete_entry")
+            Arg::with_name("delete_last_entry")
                 .short('d')
                 .long("delete")
                 .about("Delete the most recent entry.")
@@ -189,6 +189,7 @@ async fn main() -> Result<()>{
             // TODO: Log error
             Err(_e) => eprintln!("Error writing entry."),
         }
+        std::process::exit(1);
     }
 
     if let Some(values) = matches.values_of("backdate") {
@@ -197,6 +198,7 @@ async fn main() -> Result<()>{
             // TODO: Log error
             Err(_e) => println!("Error writing entry."),
         }
+        std::process::exit(1);
     }
 
     if let Some(value) = matches.value_of("week") {
@@ -215,8 +217,26 @@ async fn main() -> Result<()>{
         }
 
         create_weekly_report(&pool, _num, _memos).await?;
+        std::process::exit(1);
     }
 
+    if matches.is_present("last_entry") {
+        match display_last_entry(&pool).await {
+            Ok(_) => (),
+            Err(e) => {
+                eprintln!("Error: {:?}", e);
+                std::process::exit(1);
+            }
+        }
+        std::process::exit(1);
+    }
+
+    if matches.is_present("delete_last_entry") {
+        match db::delete_last_entry(&pool).await {
+            Ok(_) => println!("Most recent entry deleted."),
+            Err(e) => println!("Error: {:?}", e),
+        }
+    }
 
     Ok(())
 }
@@ -364,17 +384,29 @@ async fn create_weekly_report(pool: &SqlitePool, num_weeks: i64, with_memos: boo
     Ok(())
 }
 
+async fn display_last_entry(pool: &SqlitePool) -> Result<()> {
+    let e = db::read_last_entry(&pool).await?;
 
-#[cfg(test)]
-pub mod tests {
+    let mut table = Table::new();
+    table.add_row(row![Fb => "Start Time", "Stop Time", "Week Day", "Code", "Memo"]);
+    table.add_row(row![e.start, e.stop, e.week_day, e.code, e.memo]);
+    table.printstd();
 
-    #[test]
-    fn test_create_weekly_report() -> Result<()> {
-        let pool = db::tests::setup_test_db().await?;
-        db::tests::setup_entries_table(&pool).await?;
-        db::tests::setup_projects_table(&pool).await?;
-    }
+    Ok(())
 }
+
+
+
+// #[cfg(test)]
+// pub mod tests {
+
+//     #[test]
+//     fn test_create_weekly_report() -> Result<()> {
+//         let pool = db::tests::setup_test_db().await?;
+//         db::tests::setup_entries_table(&pool).await?;
+//         db::tests::setup_projects_table(&pool).await?;
+//     }
+// }
 // pub fn create_weekly_report(conn: &Connection, num_weeks: i64, with_memos: bool) -> SqlResult<()> {
 
 //     // Set up table for printing.
