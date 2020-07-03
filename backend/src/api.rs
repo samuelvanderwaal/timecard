@@ -79,7 +79,7 @@ pub fn update_project(pool: SqlitePool) -> impl Filter<Extract = impl warp::Repl
 pub fn delete_project(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::post()
         .and(warp::path("delete_project"))
-        .and(warp::path::param::<i32>())
+        .and(warp::path::param::<String>())
         .and(with_pool(pool))
         .and_then(delete_project_handler)
 }
@@ -154,8 +154,8 @@ async fn update_project_handler(project: Project, pool: SqlitePool) -> Result<im
     }
 }
 
-async fn delete_project_handler(id: i32, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
-    match db::delete_project(&pool, id).await {
+async fn delete_project_handler(code: String, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
+    match db::delete_project(&pool, code).await {
         Ok(_) => return Ok(warp::reply::with_status(
             "Entry deleted.",
             http::StatusCode::OK)
@@ -375,13 +375,14 @@ mod tests {
 
         let mut project: db::Project = Faker.fake();
         project.id = Some(1);
+        let code = project.code.clone();
         db::write_project(&pool, &project).await?;
         
         let filter = delete_project(pool.clone());
 
         let res = warp::test::request()
             .method("POST")
-            .path("/delete_project/1")
+            .path(&format!("/delete_project/{}", &code))
             .reply(&filter).await;
 
         assert_eq!(res.status(), 200);

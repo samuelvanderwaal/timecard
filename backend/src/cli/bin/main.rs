@@ -19,7 +19,7 @@ use std::str;
 
 use prettytable::{Attr, color, Cell, Row, Table};
 
-use timecard::db::{self, Entry};
+use timecard::db::{self, Entry, Project};
 
 lazy_static! {
     static ref WEEKDAYS: HashMap<String, i64> = vec![
@@ -35,7 +35,7 @@ lazy_static! {
     .collect();
 }
 
-static DATE_FORMAT: &'static str = "%Y-%m-%d %H:%M:%S";
+static DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S";
 const MAX_WIDTH: usize = 20;
 
 struct HourRowData {
@@ -168,6 +168,7 @@ async fn main() -> Result<()>{
             Arg::with_name("add_project")
                 .short('a')
                 .long("add-project")
+                .value_names(&["name", "code"])
                 .about("Add a new project to the reference table.")
         )
         .arg(
@@ -179,6 +180,8 @@ async fn main() -> Result<()>{
         .arg(
             Arg::with_name("delete_project")
                 .long("delete-project")
+                .takes_value(true)
+                .value_name("code")
                 .about("Delete a project from the reference table.")
         )
         .get_matches();
@@ -222,12 +225,12 @@ async fn main() -> Result<()>{
 
     if matches.is_present("last_entry") {
         match display_last_entry(&pool).await {
-            Ok(_) => (),
+            Ok(table) => table.printstd(),
             Err(e) => {
                 eprintln!("Error: {:?}", e);
                 std::process::exit(1);
             }
-        }
+        };
         std::process::exit(1);
     }
 
@@ -237,6 +240,36 @@ async fn main() -> Result<()>{
             Err(e) => println!("Error: {:?}", e),
         }
     }
+
+    if let Some(values) = matches.values_of("add_project") {
+        let values: Vec<&str> = values.collect();
+        let new_project = Project{
+            id: None,
+            name: values[0].to_string(),
+            code: values[1].to_string(),
+        };
+
+        let id = db::write_project(&pool, &new_project).await?;
+
+        println!("Project written with id: {}", id);
+    }
+
+    if matches.is_present("list_projects") {
+        let projects = db::read_all_projects(&pool).await?;
+
+        for project in projects {
+            println!("Name: {}\nCode: {}\n", project.name, project.code);
+        }
+    }
+
+    if let Some(value) = matches.value_of("delete_project") {
+        let code = value.parse::<String>()?;
+
+        db::delete_project(&pool, code).await?;
+
+        println!("Project deleted.");
+    }
+
 
     Ok(())
 }
@@ -273,7 +306,7 @@ async fn backdated_entry(values: Vec<&str>, pool: &SqlitePool) -> Result<()> {
         "yesterday" => Local::today() - Duration::days(1),
         "tomorrow" => Local::today() + Duration::days(1),
         _ => {
-            let date_values: Vec<&str> = values[0].split("-").collect();
+            let date_values: Vec<&str> = values[0].split('-').collect();
             let year: i32 = date_values[0].parse()?;
             let month: u32 = date_values[1].parse()?;
             let day: u32 = date_values[2].parse()?;
@@ -361,17 +394,15 @@ async fn create_weekly_report(pool: &SqlitePool, num_weeks: i64, with_memos: boo
                 for chunk in entry.memo.as_bytes().chunks(MAX_WIDTH) {
                     let chunk_str = str::from_utf8(chunk)?;
                     (*current_memo).push_str(chunk_str);
-                    if !(chunk_str.len() < MAX_WIDTH) {
+                    if chunk_str.len() >= MAX_WIDTH {
                         (*current_memo).push_str("\n");
                     }
                 }
                 (*current_memo).push_str("; ");
                 (*current_memo).push_str("\n");
         }
-        let mut text_color = color::WHITE;
-        if index % 2 == 1 {
-            text_color = color::MAGENTA;
-        } 
+
+        let text_color = if index % 2 == 1 { color::MAGENTA } else { color::WHITE };
         
         table.add_row(hour_data.convert_to_row(text_color));
 
@@ -384,121 +415,12 @@ async fn create_weekly_report(pool: &SqlitePool, num_weeks: i64, with_memos: boo
     Ok(())
 }
 
-async fn display_last_entry(pool: &SqlitePool) -> Result<()> {
+async fn display_last_entry(pool: &SqlitePool) -> Result<Table> {
     let e = db::read_last_entry(&pool).await?;
 
     let mut table = Table::new();
     table.add_row(row![Fb => "Start Time", "Stop Time", "Week Day", "Code", "Memo"]);
     table.add_row(row![e.start, e.stop, e.week_day, e.code, e.memo]);
-    table.printstd();
 
-    Ok(())
+    Ok(table)
 }
-
-
-
-// #[cfg(test)]
-// pub mod tests {
-
-//     #[test]
-//     fn test_create_weekly_report() -> Result<()> {
-//         let pool = db::tests::setup_test_db().await?;
-//         db::tests::setup_entries_table(&pool).await?;
-//         db::tests::setup_projects_table(&pool).await?;
-//     }
-// }
-// pub fn create_weekly_report(conn: &Connection, num_weeks: i64, with_memos: bool) -> SqlResult<()> {
-
-//     // Set up table for printing.
-//     let mut table = Table::new();
-//     table.add_row(row![Fb => "Project", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
-
-//     for project in projects {
-//         // To-Do: fix week_beginning & ending to be datetime so we don't have to slice off the timezone on line 141
-//         let query = format!(
-//             "SELECT start, stop, week_day, memo FROM entries WHERE code='{}' AND start >= '{}' and start <= '{}';",
-//             project.code, &week_beginning.to_string()[0..10], week_ending
-//         );
-//         let mut stmt = conn.prepare(&query)?;
-//         let mut rows = stmt.query(NO_PARAMS)?;
-
-//         let mut all_zeros = true;
-//         let mut no_memos = true;
-
-//         // Set up hashmap to track hours per week day.
-//         let mut week_hours: IndexMap<String, f64> = IndexMap::new();
-//         let mut week_memos: IndexMap<String, String> = IndexMap::new();
-
-//         let week_days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-//         for day in week_days.iter() {
-//             week_hours.insert((*day).to_owned(), 0.0);
-//             week_memos.insert((*day).to_owned(), String::from(""));
-//         }
-
-//         // Set up rows and add project code.
-//         let mut time_cells: Vec<Cell> = Vec::new();
-//         let mut memo_cells: Vec<Cell> = Vec::new();
-//         time_cells.push(Cell::new(&project.code));
-//         if with_memos{
-//             memo_cells.push(Cell::new(" "));
-//         }
-
-//         // Process rows.
-//         while let Some(row) = rows.next()? {
-//             let raw_start: String = row.get(0)?;
-//             let raw_stop: String = row.get(1)?;
-//             let week_day: String = row.get(2)?;
-//             let memo: String = row.get(3)?;
-
-//             let start: NaiveDateTime =
-//                 parse_from_str(&raw_start, DATE_FORMAT).expect("Parsing error!");
-//             let stop: NaiveDateTime =
-//                 parse_from_str(&raw_stop, DATE_FORMAT).expect("Parsing error!");
-
-//             // Look up week day in the IndexMap and update value. If it doesn't exist insert 0 and then increment.
-//             let count = week_hours.entry(week_day.clone()).or_insert(0.0);
-//             *count += stop.signed_duration_since(start).num_minutes() as f64 / 60.0;
-
-//             // Look up the week day memos IndexMap and concatenate memos.
-//             let current_memo = week_memos.entry(week_day).or_insert(String::from(""));
-//             // Implement max width
-//             for chunk in memo.as_bytes().chunks(MAX_WIDTH) {
-//                 let chunk_str = str::from_utf8(chunk)?;
-//                 (*current_memo).push_str(chunk_str);
-//                 if !(chunk_str.len() < MAX_WIDTH) {
-//                     (*current_memo).push_str("\n");
-//                 }
-//             }
-//             (*current_memo).push_str("; ");
-//             (*current_memo).push_str("\n");
-//         }
-
-//         // Iterate over hashmap hour values and add to cells.
-//         for hour in week_hours.values() {
-//             if *hour > 0.0 {
-//                 all_zeros = false;
-//             }
-//             time_cells.push(Cell::new(&hour.to_string()));
-//         }
-
-//         for memo in week_memos.values() {
-//             if ! (*memo).is_empty() {
-//                 no_memos = false;
-//             } 
-//             memo_cells.push(Cell::new(&memo.to_string()));
-//         }
-
-//         // Only add rows with at least one non-zero value.
-//         if !all_zeros {
-//             table.add_row(Row::new(time_cells.clone()));
-//         }
-
-//         if !no_memos && with_memos {
-//             table.add_row(Row::new(memo_cells.clone()));
-//         }
-
-//     }
-//     table.printstd();
-
-//     Ok(())
-// }

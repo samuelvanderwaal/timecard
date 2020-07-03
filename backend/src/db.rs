@@ -165,8 +165,8 @@ pub async fn update_project(pool: &SqlitePool, project: &Project) -> Result<()> 
     Ok(())
 }
 
-pub async fn delete_project(pool: &SqlitePool, id: i32) -> Result<()> {
-    sqlx::query!("DELETE FROM projects WHERe id=?", id)
+pub async fn delete_project(pool: &SqlitePool, code: String) -> Result<()> {
+    sqlx::query!("DELETE FROM projects WHERe code=?", code)
         .execute(pool)
         .await?;
 
@@ -568,16 +568,19 @@ pub mod tests {
         let pool = setup_test_db().await?;
         setup_projects_table(&pool).await?;
 
+        let name = String::from("PPP");
+        let code = String::from("20-008");
+
         let mut exp_project = Project {
             id: None,
-            name: "PPP".to_string(),
-            code: "20-008".to_string(),
+            name,
+            code: code.clone(),
         };
 
         let id = write_project(&pool, &exp_project).await?;
         exp_project.id = Some(id);
 
-        delete_project(&pool, id).await?;
+        delete_project(&pool, code).await?;
         assert!(read_project(&pool, id).await.is_err());
 
         Ok(())
