@@ -116,6 +116,7 @@ impl MemoRowData {
 #[tokio::main]
 async fn main() -> Result<()>{
     let pool = db::setup_pool().await?;
+    db::setup_db(&pool).await?;
 
     let matches = App::new("timecard")
         .version(crate_version!())

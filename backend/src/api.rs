@@ -84,6 +84,10 @@ pub fn delete_project(pool: SqlitePool) -> impl Filter<Extract = impl warp::Repl
         .and_then(delete_project_handler)
 }
 
+pub fn login(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::post()
+}
+
 // Handlers
 async fn new_entry(entry: Entry, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     match db::write_entry(&pool, &entry).await {

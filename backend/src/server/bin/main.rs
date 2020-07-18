@@ -10,6 +10,7 @@ use timecard::api;
 #[tokio::main]
 async fn main() -> Result<()> {
     let pool = db::setup_pool().await?;
+    db::setup_db(&pool).await?;
     run(pool).await;
 
     Ok(())
