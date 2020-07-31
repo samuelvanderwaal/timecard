@@ -60,7 +60,7 @@ pub fn update_entry(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply,
 
 pub fn delete_entry(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::post()
-        .and(warp::path("delete_entry"))
+        .and(warp::path("delete_last_entry"))
         .and(warp::path::param::<i32>())
         .and(with_pool(pool))
         .and_then(delete_entry_handler)

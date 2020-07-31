@@ -136,7 +136,7 @@ async fn main() -> Result<()>{
                 .value_names(&["start", "stop", "code", "memo"])
                 .about("Add a new time entry.")
                 .takes_value(true)
-                .value_delimiter(" ")
+                .value_delimiter("|")
         )
         .arg(
             Arg::with_name("backdate")
@@ -145,7 +145,7 @@ async fn main() -> Result<()>{
                 .value_names(&["backdate", "start", "stop", "code", "memo"])
                 .about("Add a backdated entry.")
                 .takes_value(true)
-                .value_delimiter(" ")
+                .value_delimiter("|")
         )
         .arg(
             Arg::with_name("week")
@@ -473,7 +473,7 @@ async fn create_weekly_report(base_url: &String, client: Client, num_weeks: i64,
 }
 
 async fn display_last_entry(base_url: &String, client: Client) -> Result<Table> {
-    let url = format!("{}/entry", base_url);
+    let url = format!("{}/last_entry", base_url);
     let e = client.get(&url)
         .send()
         .await?

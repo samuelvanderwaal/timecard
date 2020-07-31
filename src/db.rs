@@ -48,7 +48,7 @@ pub async fn setup_db(pool: &SqlitePool) -> Result<()> {
 
 pub async fn setup_pool() -> Result<SqlitePool> {
     dotenv().ok();
-    let db_url = env::var("DATABASE_URL").context("DATABASE_URL env var must be set!")?;
+    let db_url = env::var("TIMECARD_DB").context("TIMECARD_DB env var must be set!")?;
 
     Ok(SqlitePool::new(&db_url).await?)
 }
