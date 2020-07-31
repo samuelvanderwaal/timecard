@@ -28,3 +28,5 @@ fake = { version = "2.2.2", features = ["derive", "http"] }
 bytes = "0.5.4"
 lazy_static = "1.4.0"
 indexmap = "1.4.0"
+reqwest = { version = "0.10.7", features = ["json"] }
+http = "0.2.1"

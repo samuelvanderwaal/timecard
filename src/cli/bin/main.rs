@@ -6,18 +6,21 @@ extern crate lazy_static;
 extern crate prettytable;
 #[macro_use]
 extern crate indexmap;
+#[macro_use]
+extern crate anyhow;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::{Datelike, Duration, Local, NaiveDateTime};
 use chrono::offset::TimeZone;
-use sqlx::sqlite::SqlitePool;
 use clap::{App, Arg};
-
-use std::collections::{HashMap, HashSet};
+use http::StatusCode;
 use indexmap::IndexMap;
-use std::str;
-
 use prettytable::{Attr, color, Cell, Row, Table};
+use reqwest::Client;
+use std::collections::{HashMap, HashSet};
+use std::str;
+use std::env;
+use dotenv::dotenv;
 
 use timecard::db::{self, Entry, Project};
 
@@ -117,6 +120,10 @@ impl MemoRowData {
 async fn main() -> Result<()>{
     let pool = db::setup_pool().await?;
     db::setup_db(&pool).await?;
+    dotenv().ok();
+    let base_url: String = env::var("BACKEND_URL").context("BACKEND_URL env var must be set!")?;
+
+    let client = Client::new();
 
     let matches = App::new("timecard")
         .version(crate_version!())
@@ -188,16 +195,16 @@ async fn main() -> Result<()>{
         .get_matches();
 
     if let Some(values) = matches.values_of("entry") {
-        match process_new_entry(values.collect(), &pool).await {
+        match process_new_entry(&base_url, client, values.collect()).await {
             Ok(_) => println!("Entry submitted."),
             // TODO: Log error
-            Err(_e) => eprintln!("Error writing entry."),
+            Err(e) => eprintln!("Error writing entry: {}", e),
         }
         std::process::exit(1);
     }
 
     if let Some(values) = matches.values_of("backdate") {
-        match backdated_entry(values.collect(), &pool).await {
+        match backdated_entry(&base_url, client, values.collect()).await {
             Ok(_) => println!("Entry submitted."),
             // TODO: Log error
             Err(_e) => println!("Error writing entry."),
@@ -206,8 +213,8 @@ async fn main() -> Result<()>{
     }
 
     if let Some(value) = matches.value_of("week") {
-        let mut _memos = false;
-        let _num = match value.parse::<i64>() {
+        let mut memos = false;
+        let num = match value.parse::<i64>() {
             Ok(n) => n,
             // TODO: Log error
             Err(_e) => {
@@ -217,15 +224,15 @@ async fn main() -> Result<()>{
         };
 
         if matches.is_present("with_memos") {
-            _memos = true;
+            memos = true;
         }
 
-        create_weekly_report(&pool, _num, _memos).await?;
+        create_weekly_report(&base_url, client, num, memos).await?;
         std::process::exit(1);
     }
 
     if matches.is_present("last_entry") {
-        match display_last_entry(&pool).await {
+        match display_last_entry(&base_url, client).await {
             Ok(table) => table.printstd(),
             Err(e) => {
                 eprintln!("Error: {:?}", e);
@@ -236,9 +243,14 @@ async fn main() -> Result<()>{
     }
 
     if matches.is_present("delete_last_entry") {
-        match db::delete_last_entry(&pool).await {
-            Ok(_) => println!("Most recent entry deleted."),
-            Err(e) => println!("Error: {:?}", e),
+        let url = format!("{}/delete_last_entry", &base_url);
+        let res = client.post(&url)
+            .send()
+            .await?;
+
+        match res.status() {
+            StatusCode::OK => println!("Most recent entry deleted."),
+            _ => println!("Error: {:?}", res.status()),
         }
     }
 
@@ -250,32 +262,56 @@ async fn main() -> Result<()>{
             code: values[1].to_string(),
         };
 
-        let id = db::write_project(&pool, &new_project).await?;
+        let url = format!("{}/project", &base_url);
+        let res = client.post(&url)
+            .json(&new_project)
+            .send()
+            .await?;
 
-        println!("Project written with id: {}", id);
+        if res.status().is_success() {
+            println!("Project saved.");
+        } else {
+            println!("Http error: {}", res.status());
+        }
     }
 
     if matches.is_present("list_projects") {
-        let projects = db::read_all_projects(&pool).await?;
+        let url = format!("{}/all_projects", &base_url);
+        let projects = client.get(&url)
+            .send()
+            .await?
+            .json::<Vec<Project>>()
+            .await?;
+
+        let mut table = Table::new();
+        table.add_row(row![Fb => "Name", "Code"]);
 
         for project in projects {
-            println!("Name: {}\nCode: {}\n", project.name, project.code);
+            table.add_row(row![project.name, project.code]);
         }
+        table.printstd();
     }
 
     if let Some(value) = matches.value_of("delete_project") {
         let code = value.parse::<String>()?;
 
-        db::delete_project(&pool, code).await?;
+        let url = format!("{}/delete_project/{}", &base_url, code);
+        let res = client.post(&url)
+            .send()
+            .await?;
 
-        println!("Project deleted.");
+        if res.status().is_success() {
+            println!("Project deleted.");
+        } else {
+            println!("Http error: {}", res.status());
+        }
     }
 
 
     Ok(())
 }
 
-async fn process_new_entry(values: Vec<&str>, pool: &SqlitePool) -> Result<()> {
+async fn process_new_entry(base_url: &String, client: Client, values: Vec<&str>) -> Result<()> {
     let (start_hour, start_minute) = parse_entry_time(values[0].to_owned())?;
     let (stop_hour, stop_minute) = parse_entry_time(values[1].to_owned())?;
 
@@ -296,12 +332,20 @@ async fn process_new_entry(values: Vec<&str>, pool: &SqlitePool) -> Result<()> {
         memo,
     };
 
-    db::write_entry(pool, &new_entry).await?;
+    let url = format!("{}/entry", base_url);
+    let res = client.post(&url)
+        .json(&new_entry)
+        .send()
+        .await?;
 
-    Ok(())
+    match res.status() {
+        StatusCode::OK => Ok(()),
+        _ => Err(anyhow!("Status code: {}", res.status()))
+    }
+
 }
 
-async fn backdated_entry(values: Vec<&str>, pool: &SqlitePool) -> Result<()> {
+async fn backdated_entry(base_url: &String, client: Client, values: Vec<&str>) -> Result<()> {
     let date = match values[0] {
         "today" => Local::today(),
         "yesterday" => Local::today() - Duration::days(1),
@@ -335,9 +379,16 @@ async fn backdated_entry(values: Vec<&str>, pool: &SqlitePool) -> Result<()> {
         memo,
     };
 
-    db::write_entry(pool, &new_entry).await?;
+    let url = format!("{}/entry", base_url);
+    let res = client.post(&url)
+        .json(&new_entry)
+        .send()
+        .await?;
 
-    Ok(())
+    match res.status() {
+        StatusCode::OK => Ok(()),
+        _ => Err(anyhow!("Status code: {}", res.status()))
+    }
 }
 
 fn parse_entry_time(time_str: String) -> Result<(u32, u32)> {
@@ -356,7 +407,7 @@ fn entry_time_to_full_date<T: Datelike>(date: T, hour: u32, minute: u32) -> Stri
     )
 }
 
-async fn create_weekly_report(pool: &SqlitePool, num_weeks: i64, with_memos: bool) -> Result<()> {
+async fn create_weekly_report(base_url: &String, client: Client, num_weeks: i64, with_memos: bool) -> Result<()> {
     let parse_from_str = NaiveDateTime::parse_from_str;
     
     let day_of_week: String = Local::today().weekday().to_string();
@@ -364,7 +415,12 @@ async fn create_weekly_report(pool: &SqlitePool, num_weeks: i64, with_memos: boo
     let week_beginning = Local::today() - Duration::days(offset);
     let week_ending = week_beginning + Duration::days(6);
 
-    let entries = db::read_entries_between(pool, week_beginning.to_string(), week_ending.to_string()).await?;
+    let url = format!("{}/entries_between/{}/{}", base_url, week_beginning, week_ending);
+    let entries = client.get(&url)
+        .send()
+        .await?
+        .json::<Vec<Entry>>()
+        .await?;
 
     let mut table = Table::new();
     table.add_row(row![Fb => "Project", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
@@ -416,8 +472,13 @@ async fn create_weekly_report(pool: &SqlitePool, num_weeks: i64, with_memos: boo
     Ok(())
 }
 
-async fn display_last_entry(pool: &SqlitePool) -> Result<Table> {
-    let e = db::read_last_entry(&pool).await?;
+async fn display_last_entry(base_url: &String, client: Client) -> Result<Table> {
+    let url = format!("{}/entry", base_url);
+    let e = client.get(&url)
+        .send()
+        .await?
+        .json::<Entry>()
+        .await?;
 
     let mut table = Table::new();
     table.add_row(row![Fb => "Start Time", "Stop Time", "Week Day", "Code", "Memo"]);

@@ -36,6 +36,20 @@ pub fn get_entry(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Er
         .and_then(read_entry)
 }
 
+pub fn get_entries_between(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::get()
+        .and(warp::path!("entries_between" / String / String))
+        .and(with_pool(pool))
+        .and_then(entries_between)
+}
+
+pub fn read_last_entry(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::get()
+        .and(warp::path("last_entry"))
+        .and(with_pool(pool))
+        .and_then(last_entry)
+}
+
 pub fn update_entry(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::post()
         .and(warp::path("update_entry"))
@@ -50,6 +64,13 @@ pub fn delete_entry(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply,
         .and(warp::path::param::<i32>())
         .and(with_pool(pool))
         .and_then(delete_entry_handler)
+}
+
+pub fn delete_last_entry(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::post()
+        .and(warp::path("delete_last_entry"))
+        .and(with_pool(pool))
+        .and_then(delete_last_entry_handler)
 }
 
 pub fn post_project(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -68,6 +89,13 @@ pub fn get_project(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, 
         .and_then(read_project)
 }
 
+pub fn get_all_projects(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::get()
+        .and(warp::path("all_projects"))
+        .and(with_pool(pool))
+        .and_then(read_all_projects)
+}
+
 pub fn update_project(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
     warp::post()
         .and(warp::path("update_project"))
@@ -84,9 +112,6 @@ pub fn delete_project(pool: SqlitePool) -> impl Filter<Extract = impl warp::Repl
         .and_then(delete_project_handler)
 }
 
-pub fn login(pool: SqlitePool) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-    warp::post()
-}
 
 // Handlers
 async fn new_entry(entry: Entry, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
@@ -110,6 +135,34 @@ async fn read_entry(id: i32, pool: SqlitePool) -> Result<warp::reply::Response, 
     }
 }
 
+async fn entries_between(start: String, stop: String, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
+    match db::read_entries_between(&pool, start, stop).await {
+        Ok(entries) => {
+            return Ok(warp::reply::json(&entries).into_response())
+        },
+        Err(_) => return Ok(
+            warp::reply::with_status(
+                "Invalid date range",
+                http::StatusCode::BAD_REQUEST,
+            ).into_response()
+        )
+    }
+}
+
+async fn last_entry(pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
+    match db::read_last_entry(&pool).await {
+        Ok(entry) => {
+            return Ok(warp::reply::json(&entry).into_response())
+        },
+        Err(_) => return Ok(
+            warp::reply::with_status(
+                "Failed to read last entry.",
+                http::StatusCode::INTERNAL_SERVER_ERROR,
+            ).into_response()
+        )
+    }
+}
+
 async fn update_entry_handler(entry: Entry, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     match db::update_entry(&pool, &entry).await {
         Ok(_) => return Ok(http::StatusCode::OK),
@@ -119,14 +172,15 @@ async fn update_entry_handler(entry: Entry, pool: SqlitePool) -> Result<impl war
 
 async fn delete_entry_handler(id: i32, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     match db::delete_entry(&pool, id).await {
-        Ok(_) => return Ok(warp::reply::with_status(
-            "Entry deleted.",
-            http::StatusCode::OK)
-            ),
-        Err(_) => return Ok(warp::reply::with_status(
-            "Error deleting entry.",
-            http::StatusCode::BAD_REQUEST)
-            )   
+        Ok(_) => return Ok(http::StatusCode::OK),
+        Err(_) => return Ok(http::StatusCode::BAD_REQUEST)
+    }
+}
+
+async fn delete_last_entry_handler(pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
+    match db::delete_last_entry(&pool).await {
+        Ok(_) => Ok(http::StatusCode::OK),
+        Err(_) => Ok(http::StatusCode::INTERNAL_SERVER_ERROR)
     }
 }
 
@@ -141,6 +195,20 @@ async fn read_project(id: i32, pool: SqlitePool) -> Result<warp::reply::Response
     match db::read_project(&pool, id).await {
         Ok(project) => {
             return Ok(warp::reply::json(&project).into_response())
+        },
+        Err(_) => return Ok(
+            warp::reply::with_status(
+                "Invalid id",
+                http::StatusCode::BAD_REQUEST,
+            ).into_response()
+        )
+    }
+}
+
+async fn read_all_projects(pool: SqlitePool) -> Result<warp::reply::Response, Infallible> {
+    match db::read_all_projects(&pool).await {
+        Ok(projects) => {
+            return Ok(warp::reply::json(&projects).into_response())
         },
         Err(_) => return Ok(
             warp::reply::with_status(
@@ -170,6 +238,7 @@ async fn delete_project_handler(code: String, pool: SqlitePool) -> Result<impl w
             )   
     }
 }
+
 
 #[cfg(test)]
 mod tests {
