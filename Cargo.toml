@@ -5,11 +5,11 @@ authors = ["Samuel J Vanderwaal <samuel.vanderwaal@gmail.com>"]
 edition = "2018"
 
 [[bin]]
-name = "server"
+name = "timecard-d"
 path = "src/server/bin/main.rs"
 
 [[bin]]
-name = "cli"
+name = "timecard"
 path = "src/cli/bin/main.rs"
 
 [dependencies]

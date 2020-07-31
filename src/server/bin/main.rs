@@ -1,8 +1,6 @@
 use anyhow::Result;
 use warp::Filter;
 use sqlx::sqlite::SqlitePool;
-use dotenv::dotenv;
-use std::env;
 
 use timecard::db;
 use timecard::api;

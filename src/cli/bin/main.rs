@@ -121,7 +121,7 @@ async fn main() -> Result<()>{
     let pool = db::setup_pool().await?;
     db::setup_db(&pool).await?;
     dotenv().ok();
-    let base_url: String = env::var("BACKEND_URL").context("BACKEND_URL env var must be set!")?;
+    let base_url: String = env::var("BASE_URL").context("BASE_URL env var must be set!")?;
 
     let client = Client::new();
 
