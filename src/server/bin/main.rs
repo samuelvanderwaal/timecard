@@ -20,6 +20,8 @@ async fn run(pool: SqlitePool) {
                     .or(api::update_entry(pool.clone()))
                     .or(api::get_entries_between(pool.clone()))
                     .or(api::read_last_entry(pool.clone()))
+                    .or(api::delete_entry(pool.clone()))
+                    .or(api::delete_last_entry(pool.clone()))
                     .or(api::post_project(pool.clone()))
                     .or(api::get_project(pool.clone()))
                     .or(api::get_all_projects(pool.clone()))
