@@ -1,11 +1,11 @@
-use dotenv::dotenv;
+// Std
 use std::env;
 
+// Crates
+use dotenv::dotenv;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-
 use sqlx::sqlite::{SqlitePool, SqliteQueryAs};
-
 use fake::{Dummy, Fake};
 
 #[derive(Debug, Dummy, Clone, PartialEq, Serialize, Deserialize)]
@@ -26,22 +26,26 @@ pub struct Project {
 }
 
 pub async fn setup_db(pool: &SqlitePool) -> Result<()> {
-    sqlx::query!("CREATE TABLE IF NOT EXISTS entries (
+    sqlx::query!(
+        "CREATE TABLE IF NOT EXISTS entries (
         id INTEGER PRIMARY KEY,
         start TEXT NOT NULL,
         stop TEXT NOT NULL,
         week_day TEXT NOT NULL,
         code TEXT NOT NULL,
-        memo TEXT NOT NULL)")
-        .execute(pool)
-        .await?;
+        memo TEXT NOT NULL)"
+    )
+    .execute(pool)
+    .await?;
 
-    sqlx::query!("CREATE TABLE IF NOT EXISTS projects (
+    sqlx::query!(
+        "CREATE TABLE IF NOT EXISTS projects (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
-        code TEXT NOT NULL)")
-        .execute(pool)
-        .await?;
+        code TEXT NOT NULL)"
+    )
+    .execute(pool)
+    .await?;
 
     Ok(())
 }
@@ -80,14 +84,14 @@ pub async fn read_entries_between(
     start_date: String,
     end_date: String,
 ) -> Result<Vec<Entry>> {
-    Ok(
-        sqlx::query_as!(
-            Entry,
-            "SELECT * FROM entries WHERE start >= ? AND start <= ?",
-            start_date, end_date)
-        .fetch_all(pool)
-        .await?
+    Ok(sqlx::query_as!(
+        Entry,
+        "SELECT * FROM entries WHERE start >= ? AND start <= ?",
+        start_date,
+        end_date
     )
+    .fetch_all(pool)
+    .await?)
 }
 
 pub async fn write_entry(pool: &SqlitePool, entry: &Entry) -> Result<i32> {
@@ -244,7 +248,12 @@ pub mod tests {
     fn iso8601_to_db_format<T: Timelike + Datelike>(date: T) -> String {
         format!(
             "{}-{:02}-{:02} {:02}:{:02}:{:02}",
-            date.year(), date.month(), date.day(), date.hour(), date.minute(), 0
+            date.year(),
+            date.month(),
+            date.day(),
+            date.hour(),
+            date.minute(),
+            0
         )
     }
 
@@ -412,7 +421,8 @@ pub mod tests {
         valid_entry1.id = Some(write_entry(&pool, &valid_entry1).await?);
         valid_entry2.id = Some(write_entry(&pool, &valid_entry2).await?);
 
-        let entries = read_entries_between(&pool, start_date.to_string(), end_date.to_string()).await?;
+        let entries =
+            read_entries_between(&pool, start_date.to_string(), end_date.to_string()).await?;
 
         assert!(entries.len() == 2);
 

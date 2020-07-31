@@ -1,3 +1,4 @@
+// Macros
 #[macro_use]
 extern crate clap;
 #[macro_use]
@@ -9,19 +10,23 @@ extern crate indexmap;
 #[macro_use]
 extern crate anyhow;
 
+// Std
+use std::collections::{HashMap, HashSet};
+use std::env;
+use std::str;
+
+// Crates
 use anyhow::{Context, Result};
-use chrono::{Datelike, Duration, Local, NaiveDateTime};
 use chrono::offset::TimeZone;
+use chrono::{Datelike, Duration, Local, NaiveDateTime};
 use clap::{App, Arg};
+use dotenv::dotenv;
 use http::StatusCode;
 use indexmap::IndexMap;
-use prettytable::{Attr, color, Cell, Row, Table};
+use prettytable::{color, Attr, Cell, Row, Table};
 use reqwest::Client;
-use std::collections::{HashMap, HashSet};
-use std::str;
-use std::env;
-use dotenv::dotenv;
 
+// Local
 use timecard::db::{self, Entry, Project};
 
 lazy_static! {
@@ -55,7 +60,7 @@ impl HourRowData {
     fn new() -> Self {
         HourRowData {
             project: String::new(),
-            hours: indexmap!{
+            hours: indexmap! {
                 "Sun".to_string() => 0.0,
                 "Mon".to_string() => 0.0,
                 "Tue".to_string() => 0.0,
@@ -63,21 +68,15 @@ impl HourRowData {
                 "Thu".to_string() => 0.0,
                 "Fri".to_string() => 0.0,
                 "Sat".to_string() => 0.0,
-            }
+            },
         }
     }
 
     fn convert_to_row(&self, text_color: color::Color) -> Row {
         let mut cells: Vec<Cell> = Vec::new();
-        cells.push(
-            Cell::new(&self.project)
-                .with_style(Attr::ForegroundColor(text_color))
-        );
+        cells.push(Cell::new(&self.project).with_style(Attr::ForegroundColor(text_color)));
         for (_, value) in self.hours.iter() {
-            cells.push(
-                Cell::new(&value.to_string())
-                    .with_style(Attr::ForegroundColor(text_color))
-            );
+            cells.push(Cell::new(&value.to_string()).with_style(Attr::ForegroundColor(text_color)));
         }
         Row::new(cells)
     }
@@ -87,7 +86,7 @@ impl MemoRowData {
     fn new() -> Self {
         MemoRowData {
             project: String::new(),
-            memos: indexmap!{
+            memos: indexmap! {
                 "Sun".to_string() => String::from(""),
                 "Mon".to_string() => String::from(""),
                 "Tue".to_string() => String::from(""),
@@ -101,23 +100,16 @@ impl MemoRowData {
 
     fn convert_to_row(&self, text_color: color::Color) -> Row {
         let mut cells: Vec<Cell> = Vec::new();
-        cells.push(
-            Cell::new(&self.project)
-                .with_style(Attr::ForegroundColor(text_color))
-        );
+        cells.push(Cell::new(&self.project).with_style(Attr::ForegroundColor(text_color)));
         for (_, value) in self.memos.iter() {
-            cells.push(
-                Cell::new(&value)
-                    .with_style(Attr::ForegroundColor(text_color))
-            );
+            cells.push(Cell::new(&value).with_style(Attr::ForegroundColor(text_color)));
         }
         Row::new(cells)
     }
 }
 
-
 #[tokio::main]
-async fn main() -> Result<()>{
+async fn main() -> Result<()> {
     let pool = db::setup_pool().await?;
     db::setup_db(&pool).await?;
     dotenv().ok();
@@ -136,7 +128,7 @@ async fn main() -> Result<()>{
                 .value_names(&["start", "stop", "code", "memo"])
                 .about("Add a new time entry.")
                 .takes_value(true)
-                .value_delimiter("|")
+                .value_delimiter("|"),
         )
         .arg(
             Arg::with_name("backdate")
@@ -145,52 +137,51 @@ async fn main() -> Result<()>{
                 .value_names(&["backdate", "start", "stop", "code", "memo"])
                 .about("Add a backdated entry.")
                 .takes_value(true)
-                .value_delimiter("|")
+                .value_delimiter("|"),
         )
         .arg(
             Arg::with_name("week")
                 .short('w')
                 .long("week")
                 .takes_value(true)
-                .about("Print weekly report.")
+                .about("Print weekly report."),
         )
         .arg(
             Arg::with_name("with_memos")
-            .short('m')
-            .long("with-memos")
-            .about("Use with '-w'. Adds memos to weekly report.")
+                .short('m')
+                .long("with-memos")
+                .about("Use with '-w'. Adds memos to weekly report."),
         )
         .arg(
             Arg::with_name("last_entry")
                 .long("last")
-                .about("Display the most recent entry.")
+                .about("Display the most recent entry."),
         )
         .arg(
             Arg::with_name("delete_last_entry")
                 .short('d')
                 .long("delete")
-                .about("Delete the most recent entry.")
-
+                .about("Delete the most recent entry."),
         )
         .arg(
             Arg::with_name("add_project")
                 .short('a')
                 .long("add-project")
                 .value_names(&["name", "code"])
-                .about("Add a new project to the reference table.")
+                .about("Add a new project to the reference table."),
         )
         .arg(
             Arg::with_name("list_projects")
                 .short('p')
                 .long("list-projects")
-                .about("List all projects in the reference table.")
+                .about("List all projects in the reference table."),
         )
         .arg(
             Arg::with_name("delete_project")
                 .long("delete-project")
                 .takes_value(true)
                 .value_name("code")
-                .about("Delete a project from the reference table.")
+                .about("Delete a project from the reference table."),
         )
         .get_matches();
 
@@ -244,9 +235,7 @@ async fn main() -> Result<()>{
 
     if matches.is_present("delete_last_entry") {
         let url = format!("{}/delete_last_entry", &base_url);
-        let res = client.post(&url)
-            .send()
-            .await?;
+        let res = client.post(&url).send().await?;
 
         match res.status() {
             StatusCode::OK => println!("Most recent entry deleted."),
@@ -256,17 +245,14 @@ async fn main() -> Result<()>{
 
     if let Some(values) = matches.values_of("add_project") {
         let values: Vec<&str> = values.collect();
-        let new_project = Project{
+        let new_project = Project {
             id: None,
             name: values[0].to_string(),
             code: values[1].to_string(),
         };
 
         let url = format!("{}/project", &base_url);
-        let res = client.post(&url)
-            .json(&new_project)
-            .send()
-            .await?;
+        let res = client.post(&url).json(&new_project).send().await?;
 
         if res.status().is_success() {
             println!("Project saved.");
@@ -277,7 +263,8 @@ async fn main() -> Result<()>{
 
     if matches.is_present("list_projects") {
         let url = format!("{}/all_projects", &base_url);
-        let projects = client.get(&url)
+        let projects = client
+            .get(&url)
             .send()
             .await?
             .json::<Vec<Project>>()
@@ -296,9 +283,7 @@ async fn main() -> Result<()>{
         let code = value.parse::<String>()?;
 
         let url = format!("{}/delete_project/{}", &base_url, code);
-        let res = client.post(&url)
-            .send()
-            .await?;
+        let res = client.post(&url).send().await?;
 
         if res.status().is_success() {
             println!("Project deleted.");
@@ -306,7 +291,6 @@ async fn main() -> Result<()>{
             println!("Http error: {}", res.status());
         }
     }
-
 
     Ok(())
 }
@@ -333,16 +317,12 @@ async fn process_new_entry(base_url: &String, client: Client, values: Vec<&str>)
     };
 
     let url = format!("{}/entry", base_url);
-    let res = client.post(&url)
-        .json(&new_entry)
-        .send()
-        .await?;
+    let res = client.post(&url).json(&new_entry).send().await?;
 
     match res.status() {
         StatusCode::OK => Ok(()),
-        _ => Err(anyhow!("Status code: {}", res.status()))
+        _ => Err(anyhow!("Status code: {}", res.status())),
     }
-
 }
 
 async fn backdated_entry(base_url: &String, client: Client, values: Vec<&str>) -> Result<()> {
@@ -357,14 +337,14 @@ async fn backdated_entry(base_url: &String, client: Client, values: Vec<&str>) -
             let day: u32 = date_values[2].parse()?;
 
             Local.ymd(year, month, day)
-            }, 
+        }
     };
 
     let (start_hour, start_minute) = parse_entry_time(values[1].to_owned())?;
     let (stop_hour, stop_minute) = parse_entry_time(values[2].to_owned())?;
 
     let start = entry_time_to_full_date(date, start_hour, start_minute);
-    let stop =  entry_time_to_full_date(date, stop_hour, stop_minute);
+    let stop = entry_time_to_full_date(date, stop_hour, stop_minute);
 
     let week_day: String = date.weekday().to_string();
     let code = values[3].to_owned();
@@ -380,14 +360,11 @@ async fn backdated_entry(base_url: &String, client: Client, values: Vec<&str>) -
     };
 
     let url = format!("{}/entry", base_url);
-    let res = client.post(&url)
-        .json(&new_entry)
-        .send()
-        .await?;
+    let res = client.post(&url).json(&new_entry).send().await?;
 
     match res.status() {
         StatusCode::OK => Ok(()),
-        _ => Err(anyhow!("Status code: {}", res.status()))
+        _ => Err(anyhow!("Status code: {}", res.status())),
     }
 }
 
@@ -404,23 +381,27 @@ fn entry_time_to_full_date<T: Datelike>(date: T, hour: u32, minute: u32) -> Stri
     return format!(
         "{}-{:02}-{:02} {:02}:{:02}:{:02}",
         year, month, day, hour, minute, 0
-    )
+    );
 }
 
-async fn create_weekly_report(base_url: &String, client: Client, num_weeks: i64, with_memos: bool) -> Result<()> {
+async fn create_weekly_report(
+    base_url: &String,
+    client: Client,
+    num_weeks: i64,
+    with_memos: bool,
+) -> Result<()> {
     let parse_from_str = NaiveDateTime::parse_from_str;
-    
+
     let day_of_week: String = Local::today().weekday().to_string();
     let offset = *WEEKDAYS.get(&day_of_week).expect("Day does not exist!") + (7 * num_weeks);
     let week_beginning = Local::today() - Duration::days(offset);
     let week_ending = week_beginning + Duration::days(6);
 
-    let url = format!("{}/entries_between/{}/{}", base_url, week_beginning, week_ending);
-    let entries = client.get(&url)
-        .send()
-        .await?
-        .json::<Vec<Entry>>()
-        .await?;
+    let url = format!(
+        "{}/entries_between/{}/{}",
+        base_url, week_beginning, week_ending
+    );
+    let entries = client.get(&url).send().await?.json::<Vec<Entry>>().await?;
 
     let mut table = Table::new();
     table.add_row(row![Fb => "Project", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]);
@@ -428,7 +409,7 @@ async fn create_weekly_report(base_url: &String, client: Client, num_weeks: i64,
     let mut codes: HashSet<String> = HashSet::new();
     for entry in &entries {
         codes.insert(entry.code.clone());
-    } 
+    }
 
     for (index, code) in codes.iter().enumerate() {
         let mut hour_data = HourRowData::new();
@@ -439,28 +420,35 @@ async fn create_weekly_report(base_url: &String, client: Client, num_weeks: i64,
         let project_entries = entries.iter().filter(|entry| &entry.code == code);
 
         for entry in project_entries {
-                let start: NaiveDateTime =
-                    parse_from_str(&entry.start, DATE_FORMAT).expect("Parsing error!");
-                let stop: NaiveDateTime =
-                    parse_from_str(&entry.stop, DATE_FORMAT).expect("Parsing error!");
-                let h = hour_data.hours.entry(entry.week_day.clone()).or_insert(0.0);
-                *h += stop.signed_duration_since(start).num_minutes() as f64 / 60.0;
-                
-                let current_memo = memo_data.memos.entry(entry.week_day.clone()).or_insert(String::from(""));
-                // Implement max width
-                for chunk in entry.memo.as_bytes().chunks(MAX_WIDTH) {
-                    let chunk_str = str::from_utf8(chunk)?;
-                    (*current_memo).push_str(chunk_str);
-                    if chunk_str.len() >= MAX_WIDTH {
-                        (*current_memo).push_str("\n");
-                    }
+            let start: NaiveDateTime =
+                parse_from_str(&entry.start, DATE_FORMAT).expect("Parsing error!");
+            let stop: NaiveDateTime =
+                parse_from_str(&entry.stop, DATE_FORMAT).expect("Parsing error!");
+            let h = hour_data.hours.entry(entry.week_day.clone()).or_insert(0.0);
+            *h += stop.signed_duration_since(start).num_minutes() as f64 / 60.0;
+
+            let current_memo = memo_data
+                .memos
+                .entry(entry.week_day.clone())
+                .or_insert(String::from(""));
+            // Implement max width
+            for chunk in entry.memo.as_bytes().chunks(MAX_WIDTH) {
+                let chunk_str = str::from_utf8(chunk)?;
+                (*current_memo).push_str(chunk_str);
+                if chunk_str.len() >= MAX_WIDTH {
+                    (*current_memo).push_str("\n");
                 }
-                (*current_memo).push_str("; ");
-                (*current_memo).push_str("\n");
+            }
+            (*current_memo).push_str("; ");
+            (*current_memo).push_str("\n");
         }
 
-        let text_color = if index % 2 == 1 { color::MAGENTA } else { color::WHITE };
-        
+        let text_color = if index % 2 == 1 {
+            color::MAGENTA
+        } else {
+            color::WHITE
+        };
+
         table.add_row(hour_data.convert_to_row(text_color));
 
         if with_memos {
@@ -474,11 +462,7 @@ async fn create_weekly_report(base_url: &String, client: Client, num_weeks: i64,
 
 async fn display_last_entry(base_url: &String, client: Client) -> Result<Table> {
     let url = format!("{}/last_entry", base_url);
-    let e = client.get(&url)
-        .send()
-        .await?
-        .json::<Entry>()
-        .await?;
+    let e = client.get(&url).send().await?.json::<Entry>().await?;
 
     let mut table = Table::new();
     table.add_row(row![Fb => "Start Time", "Stop Time", "Week Day", "Code", "Memo"]);
