@@ -1,8 +1,8 @@
 use anyhow::Result;
-
 use warp::Filter;
-
 use sqlx::sqlite::SqlitePool;
+use dotenv::dotenv;
+use std::env;
 
 use timecard::db;
 use timecard::api;
@@ -28,5 +28,5 @@ async fn run(pool: SqlitePool) {
                     .or(api::update_project(pool.clone()))
                     .or(api::delete_project(pool.clone()));
 
-    warp::serve(routes).run(([0, 0, 0, 0], 3030)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], 3333)).await;
 }

@@ -1,0 +1,2 @@
+DATABASE_URL="sqlite:///path/to/timecard.db"
+BACKEND_URL="http://0.0.0.0:3030"

@@ -25,12 +25,6 @@ pub struct Project {
     pub code: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct User {
-    pub username: String,
-    pub password: String,
-}
-
 pub async fn setup_db(pool: &SqlitePool) -> Result<()> {
     sqlx::query!("CREATE TABLE IF NOT EXISTS entries (
         id INTEGER PRIMARY KEY,
@@ -46,12 +40,6 @@ pub async fn setup_db(pool: &SqlitePool) -> Result<()> {
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
         code TEXT NOT NULL)")
-        .execute(pool)
-        .await?;
-
-    sqlx::query!("CREATE TABLE IF NOT EXISTS auth_users (
-        username TEXT PRIMARY KEY,
-        password TEXT NOT NULL)")
         .execute(pool)
         .await?;
 
@@ -206,14 +194,6 @@ pub async fn delete_project(pool: &SqlitePool, code: String) -> Result<()> {
     Ok(())
 }
 
-pub async fn validate_user(pool: &SqlitePool, user: &User) -> Result<bool> {
-    let result = sqlx::query!("SELECT password FROM auth_users WHERE username=?", user.username)
-        .fetch_one(pool)
-        .await?;
-
-    Ok(result.password == user.password)
-}
-
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -257,17 +237,6 @@ pub mod tests {
         Ok(())
     }
 
-    pub async fn setup_auth_users_table(pool: &SqlitePool) -> Result<()> {
-        sqlx::query!(
-            "CREATE TABLE IF NOT EXISTS auth_users (
-                username TEXT PRIMARY KEY,
-                password TEXT NOT NULL)"
-        )
-        .execute(pool)
-        .await?;
-
-        Ok(())
-    }
     fn random_name() -> String {
         thread_rng().sample_iter(&Alphanumeric).take(16).collect()
     }
@@ -634,38 +603,6 @@ pub mod tests {
 
         delete_project(&pool, code).await?;
         assert!(read_project(&pool, id).await.is_err());
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_validate_user() -> Result<()> {
-        let pool = setup_test_db().await?;
-        setup_auth_users_table(&pool).await?;
-
-        let username = String::from("svanderwaal");
-        let valid_password = String::from("soopersecret");
-        let invalid_password = String::from("notpassword");
-
-        let valid_user = User{
-            username: username.clone(),
-            password: valid_password
-        };
-
-        let invalid_user = User{
-            username,
-            password: invalid_password
-        };
-
-        sqlx::query!("INSERT INTO auth_users (username, password) VALUES (?, ?)", valid_user.username, valid_user.password)
-            .execute(&pool)
-            .await?;
-
-        let authorized = validate_user(&pool, &valid_user).await?;
-        assert!(authorized);
-
-        let authorized = validate_user(&pool, &invalid_user).await?;
-        assert!(!authorized);
 
         Ok(())
     }
