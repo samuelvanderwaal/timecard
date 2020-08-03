@@ -4,26 +4,9 @@ use std::env;
 // Crates
 use dotenv::dotenv;
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
 use sqlx::sqlite::{SqlitePool, SqliteQueryAs};
-use fake::{Dummy, Fake};
 
-#[derive(Debug, Dummy, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Entry {
-    pub id: Option<i32>,
-    pub start: String,
-    pub stop: String,
-    pub week_day: String,
-    pub code: String,
-    pub memo: String,
-}
-
-#[derive(Debug, Dummy, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Project {
-    pub id: Option<i32>,
-    pub name: String,
-    pub code: String,
-}
+use crate::{Entry, Project};
 
 pub async fn setup_db(pool: &SqlitePool) -> Result<()> {
     sqlx::query!(

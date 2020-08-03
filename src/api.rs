@@ -8,7 +8,8 @@ use warp::reply::Reply;
 use warp::{http, Filter};
 
 // Modules
-use crate::db::{self, Entry, Project};
+use crate::db;
+use crate::{Entry, Project};
 
 fn json_body_entry() -> impl Filter<Extract = (Entry,), Error = warp::Rejection> + Clone {
     warp::body::content_length_limit(1024 * 16).and(warp::body::json())

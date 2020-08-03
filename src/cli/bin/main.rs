@@ -27,7 +27,7 @@ use prettytable::{color, Attr, Cell, Row, Table};
 use reqwest::Client;
 
 // Local
-use timecard::db::{self, Entry, Project};
+use timecard::{Entry, Project};
 
 lazy_static! {
     static ref WEEKDAYS: HashMap<String, i64> = vec![
@@ -110,8 +110,6 @@ impl MemoRowData {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let pool = db::setup_pool().await?;
-    db::setup_db(&pool).await?;
     dotenv().ok();
     let base_url: String = env::var("BASE_URL").context("BASE_URL env var must be set!")?;
 
