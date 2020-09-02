@@ -2,7 +2,6 @@
 use anyhow::Result;
 use sqlx::sqlite::SqlitePool;
 use tracing::{info, Level};
-use tracing_subscriber;
 use warp::Filter;
 
 // Local
@@ -19,8 +18,7 @@ async fn main() -> Result<()> {
         .with_max_level(Level::TRACE)
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("no global subscriber has been set");
+    tracing::subscriber::set_global_default(subscriber).expect("no global subscriber has been set");
 
     info!("Listening on port {}. . .", listen_port);
     run(pool, listen_port).await;

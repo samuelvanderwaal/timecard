@@ -4,7 +4,7 @@ use std::convert::Infallible;
 // Crates
 use anyhow::Result;
 use sqlx::sqlite::SqlitePool;
-use tracing::{info};
+use tracing::info;
 use warp::reply::Reply;
 use warp::{http, Filter};
 
@@ -148,21 +148,18 @@ pub fn delete_project(
 async fn new_entry(entry: Entry, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     info!("Processing new entry");
     match db::write_entry(&pool, &entry).await {
-        Ok(_) => return Ok(http::StatusCode::OK),
-        Err(_) => return Ok(http::StatusCode::BAD_REQUEST),
-    };
+        Ok(_) => Ok(http::StatusCode::OK),
+        Err(_) => Ok(http::StatusCode::BAD_REQUEST),
+    }
 }
 
 async fn read_entry(id: i32, pool: SqlitePool) -> Result<warp::reply::Response, Infallible> {
     info!("Reading entry #{}", id);
     match db::read_entry(&pool, id).await {
-        Ok(entry) => return Ok(warp::reply::json(&entry).into_response()),
-        Err(_) => {
-            return Ok(
-                warp::reply::with_status("Invalid id", http::StatusCode::BAD_REQUEST)
-                    .into_response(),
-            )
-        }
+        Ok(entry) => Ok(warp::reply::json(&entry).into_response()),
+        Err(_) => Ok(
+            warp::reply::with_status("Invalid id", http::StatusCode::BAD_REQUEST).into_response(),
+        ),
     }
 }
 
@@ -173,28 +170,23 @@ async fn entries_between(
 ) -> Result<impl warp::Reply, Infallible> {
     info!("Reading entries between {} and {}", start, stop);
     match db::read_entries_between(&pool, start, stop).await {
-        Ok(entries) => return Ok(warp::reply::json(&entries).into_response()),
-        Err(_) => {
-            return Ok(warp::reply::with_status(
-                "Invalid date range",
-                http::StatusCode::BAD_REQUEST,
-            )
-            .into_response())
-        }
+        Ok(entries) => Ok(warp::reply::json(&entries).into_response()),
+        Err(_) => Ok(
+            warp::reply::with_status("Invalid date range", http::StatusCode::BAD_REQUEST)
+                .into_response(),
+        ),
     }
 }
 
 async fn last_entry(pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     info!("Reading most recent entry.");
     match db::read_last_entry(&pool).await {
-        Ok(entry) => return Ok(warp::reply::json(&entry).into_response()),
-        Err(_) => {
-            return Ok(warp::reply::with_status(
-                "Failed to read last entry.",
-                http::StatusCode::INTERNAL_SERVER_ERROR,
-            )
-            .into_response())
-        }
+        Ok(entry) => Ok(warp::reply::json(&entry).into_response()),
+        Err(_) => Ok(warp::reply::with_status(
+            "Failed to read last entry.",
+            http::StatusCode::INTERNAL_SERVER_ERROR,
+        )
+        .into_response()),
     }
 }
 
@@ -204,16 +196,16 @@ async fn update_entry_handler(
 ) -> Result<impl warp::Reply, Infallible> {
     info!("Reading most recent entry.");
     match db::update_entry(&pool, &entry).await {
-        Ok(_) => return Ok(http::StatusCode::OK),
-        Err(_) => return Ok(http::StatusCode::BAD_REQUEST),
+        Ok(_) => Ok(http::StatusCode::OK),
+        Err(_) => Ok(http::StatusCode::BAD_REQUEST),
     }
 }
 
 async fn delete_entry_handler(id: i32, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     info!("Deleting entry #{}", id);
     match db::delete_entry(&pool, id).await {
-        Ok(_) => return Ok(http::StatusCode::OK),
-        Err(_) => return Ok(http::StatusCode::BAD_REQUEST),
+        Ok(_) => Ok(http::StatusCode::OK),
+        Err(_) => Ok(http::StatusCode::BAD_REQUEST),
     }
 }
 
@@ -228,34 +220,28 @@ async fn delete_last_entry_handler(pool: SqlitePool) -> Result<impl warp::Reply,
 async fn new_project(project: Project, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     info!("Creating a new project.");
     match db::write_project(&pool, &project).await {
-        Ok(_) => return Ok(http::StatusCode::OK),
-        Err(_) => return Ok(http::StatusCode::BAD_REQUEST),
-    };
+        Ok(_) => Ok(http::StatusCode::OK),
+        Err(_) => Ok(http::StatusCode::BAD_REQUEST),
+    }
 }
 
 async fn read_project(id: i32, pool: SqlitePool) -> Result<warp::reply::Response, Infallible> {
-     info!("Reading project #{}", id);
+    info!("Reading project #{}", id);
     match db::read_project(&pool, id).await {
-        Ok(project) => return Ok(warp::reply::json(&project).into_response()),
-        Err(_) => {
-            return Ok(
-                warp::reply::with_status("Invalid id", http::StatusCode::BAD_REQUEST)
-                    .into_response(),
-            )
-        }
+        Ok(project) => Ok(warp::reply::json(&project).into_response()),
+        Err(_) => Ok(
+            warp::reply::with_status("Invalid id", http::StatusCode::BAD_REQUEST).into_response(),
+        ),
     }
 }
 
 async fn read_all_projects(pool: SqlitePool) -> Result<warp::reply::Response, Infallible> {
     info!("Reading all projects.");
     match db::read_all_projects(&pool).await {
-        Ok(projects) => return Ok(warp::reply::json(&projects).into_response()),
-        Err(_) => {
-            return Ok(
-                warp::reply::with_status("Invalid id", http::StatusCode::BAD_REQUEST)
-                    .into_response(),
-            )
-        }
+        Ok(projects) => Ok(warp::reply::json(&projects).into_response()),
+        Err(_) => Ok(
+            warp::reply::with_status("Invalid id", http::StatusCode::BAD_REQUEST).into_response(),
+        ),
     }
 }
 
@@ -265,8 +251,8 @@ async fn update_project_handler(
 ) -> Result<impl warp::Reply, Infallible> {
     info!("Updating project.");
     match db::update_project(&pool, &project).await {
-        Ok(_) => return Ok(http::StatusCode::OK),
-        Err(_) => return Ok(http::StatusCode::BAD_REQUEST),
+        Ok(_) => Ok(http::StatusCode::OK),
+        Err(_) => Ok(http::StatusCode::BAD_REQUEST),
     }
 }
 
@@ -276,18 +262,14 @@ async fn delete_project_handler(
 ) -> Result<impl warp::Reply, Infallible> {
     info!("Deleting project: {}", code);
     match db::delete_project(&pool, code).await {
-        Ok(_) => {
-            return Ok(warp::reply::with_status(
-                "Entry deleted.",
-                http::StatusCode::OK,
-            ))
-        }
-        Err(_) => {
-            return Ok(warp::reply::with_status(
-                "Error deleting entry.",
-                http::StatusCode::BAD_REQUEST,
-            ))
-        }
+        Ok(_) => Ok(warp::reply::with_status(
+            "Entry deleted.",
+            http::StatusCode::OK,
+        )),
+        Err(_) => Ok(warp::reply::with_status(
+            "Error deleting entry.",
+            http::StatusCode::BAD_REQUEST,
+        )),
     }
 }
 

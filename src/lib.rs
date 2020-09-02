@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use fake::{Dummy, Fake};
+use serde::{Deserialize, Serialize};
 
 pub mod api;
 pub mod db;

@@ -293,7 +293,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn process_new_entry(base_url: &String, client: Client, values: Vec<&str>) -> Result<()> {
+async fn process_new_entry(base_url: &str, client: Client, values: Vec<&str>) -> Result<()> {
     let (start_hour, start_minute) = parse_entry_time(values[0].to_owned())?;
     let (stop_hour, stop_minute) = parse_entry_time(values[1].to_owned())?;
 
@@ -323,7 +323,7 @@ async fn process_new_entry(base_url: &String, client: Client, values: Vec<&str>)
     }
 }
 
-async fn backdated_entry(base_url: &String, client: Client, values: Vec<&str>) -> Result<()> {
+async fn backdated_entry(base_url: &str, client: Client, values: Vec<&str>) -> Result<()> {
     let date = match values[0] {
         "today" => Local::today(),
         "yesterday" => Local::today() - Duration::days(1),
@@ -383,7 +383,7 @@ fn entry_time_to_full_date<T: Datelike>(date: T, hour: u32, minute: u32) -> Stri
 }
 
 async fn create_weekly_report(
-    base_url: &String,
+    base_url: &str,
     client: Client,
     num_weeks: i64,
     with_memos: bool,
@@ -458,7 +458,7 @@ async fn create_weekly_report(
     Ok(())
 }
 
-async fn display_last_entry(base_url: &String, client: Client) -> Result<Table> {
+async fn display_last_entry(base_url: &str, client: Client) -> Result<Table> {
     let url = format!("{}/last_entry", base_url);
     let e = client.get(&url).send().await?.json::<Entry>().await?;
 

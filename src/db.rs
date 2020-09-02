@@ -2,8 +2,8 @@
 use std::env;
 
 // Crates
-use dotenv::dotenv;
 use anyhow::{Context, Result};
+use dotenv::dotenv;
 use sqlx::sqlite::{SqlitePool, SqliteQueryAs};
 
 use crate::{Entry, Project};
