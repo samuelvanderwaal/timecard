@@ -13,7 +13,7 @@ name = "timecard"
 path = "src/cli/bin/main.rs"
 
 [dependencies]
-clap = "3.0.0-beta.1"
+clap = "2.33.3"
 chrono = "0.4.10"
 prettytable-rs = "0.8.0"
 dotenv = "0.15.0"
@@ -30,5 +30,9 @@ lazy_static = "1.4.0"
 indexmap = "1.4.0"
 reqwest = { version = "0.10.7", features = ["json"] }
 http = "0.2.1"
-tracing = "0.1.18"
-tracing-subscriber = "0.2.10"
+tracing = "0.1.19"
+tracing-bunyan-formatter = "0.1.6"
+tracing-futures = "0.2.4"
+tracing-subscriber = { version = "0.2.12", features = ["registry", "env-filter"] }
+tracing-log = "0.1.1"
+uuid = { version = "0.8.1", features = ["v4"] }

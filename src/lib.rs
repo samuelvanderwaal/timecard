@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod api;
 pub mod db;
+pub mod telemetry;
 
 #[derive(Debug, Dummy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Entry {

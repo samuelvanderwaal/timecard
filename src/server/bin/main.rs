@@ -1,24 +1,24 @@
 // Crates
 use anyhow::Result;
+use dotenv::dotenv;
 use sqlx::sqlite::SqlitePool;
-use tracing::{info, Level};
+use tracing::{info};
 use warp::Filter;
 
 // Local
 use timecard::api;
 use timecard::db;
+use timecard::telemetry::{get_subscriber, init_subscriber};
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    dotenv().ok();
     let listen_port = 3333;
     let pool = db::setup_pool().await?;
     db::setup_db(&pool).await?;
 
-    let subscriber = tracing_subscriber::fmt()
-        .with_max_level(Level::TRACE)
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber).expect("no global subscriber has been set");
+    let subscriber = get_subscriber("timecard".into(), "info".into());
+    init_subscriber(subscriber);
 
     info!("Listening on port {}. . .", listen_port);
     run(pool, listen_port).await;

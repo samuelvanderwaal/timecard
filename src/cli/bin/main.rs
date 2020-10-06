@@ -118,68 +118,68 @@ async fn main() -> Result<()> {
     let matches = App::new("timecard")
         .version(crate_version!())
         .author("Samuel Vanderwaal")
-        .about("A time-tracking command line program.")
+        .help("A time-tracking command line program.")
         .arg(
             Arg::with_name("entry")
-                .short('e')
+                .short("e")
                 .long("entry")
                 .value_names(&["start", "stop", "code", "memo"])
-                .about("Add a new time entry.")
+                .help("Add a new time entry.")
                 .takes_value(true)
                 .value_delimiter("|"),
         )
         .arg(
             Arg::with_name("backdate")
-                .short('b')
+                .short("b")
                 .long("backdate")
                 .value_names(&["backdate", "start", "stop", "code", "memo"])
-                .about("Add a backdated entry.")
+                .help("Add a backdated entry.")
                 .takes_value(true)
                 .value_delimiter("|"),
         )
         .arg(
             Arg::with_name("week")
-                .short('w')
+                .short("w")
                 .long("week")
                 .takes_value(true)
-                .about("Print weekly report."),
+                .help("Print weekly report."),
         )
         .arg(
             Arg::with_name("with_memos")
-                .short('m')
+                .short("m")
                 .long("with-memos")
-                .about("Use with '-w'. Adds memos to weekly report."),
+                .help("Use with '-w'. Adds memos to weekly report."),
         )
         .arg(
             Arg::with_name("last_entry")
                 .long("last")
-                .about("Display the most recent entry."),
+                .help("Display the most recent entry."),
         )
         .arg(
             Arg::with_name("delete_last_entry")
-                .short('d')
+                .short("d")
                 .long("delete")
-                .about("Delete the most recent entry."),
+                .help("Delete the most recent entry."),
         )
         .arg(
             Arg::with_name("add_project")
-                .short('a')
+                .short("a")
                 .long("add-project")
                 .value_names(&["name", "code"])
-                .about("Add a new project to the reference table."),
+                .help("Add a new project to the reference table."),
         )
         .arg(
             Arg::with_name("list_projects")
-                .short('p')
+                .short("p")
                 .long("list-projects")
-                .about("List all projects in the reference table."),
+                .help("List all projects in the reference table."),
         )
         .arg(
             Arg::with_name("delete_project")
                 .long("delete-project")
                 .takes_value(true)
                 .value_name("code")
-                .about("Delete a project from the reference table."),
+                .help("Delete a project from the reference table."),
         )
         .get_matches();
 

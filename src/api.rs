@@ -5,6 +5,7 @@ use std::convert::Infallible;
 use anyhow::Result;
 use sqlx::sqlite::SqlitePool;
 use tracing::info;
+use uuid::Uuid;
 use warp::reply::Reply;
 use warp::{http, Filter};
 
@@ -145,14 +146,34 @@ pub fn delete_project(
 }
 
 // Handlers
+
+#[tracing::instrument(
+    name = "Processing new entry",
+    skip(entry, pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+        start = %entry.start,
+        stop = %entry.stop,
+        code = %entry.code,
+        memo = %entry.memo,
+    )
+)]
 async fn new_entry(entry: Entry, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
-    info!("Processing new entry");
     match db::write_entry(&pool, &entry).await {
         Ok(_) => Ok(http::StatusCode::OK),
         Err(_) => Ok(http::StatusCode::BAD_REQUEST),
     }
+
 }
 
+#[tracing::instrument(
+    name = "Reading entry",
+    skip(id, pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+        id = %id,
+    )
+)]
 async fn read_entry(id: i32, pool: SqlitePool) -> Result<warp::reply::Response, Infallible> {
     info!("Reading entry #{}", id);
     match db::read_entry(&pool, id).await {
@@ -163,6 +184,12 @@ async fn read_entry(id: i32, pool: SqlitePool) -> Result<warp::reply::Response, 
     }
 }
 
+#[tracing::instrument(
+    skip(pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+    )
+)]
 async fn entries_between(
     start: String,
     stop: String,
@@ -178,6 +205,12 @@ async fn entries_between(
     }
 }
 
+#[tracing::instrument(
+    skip(pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+    )
+)]
 async fn last_entry(pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     info!("Reading most recent entry.");
     match db::read_last_entry(&pool).await {
@@ -190,6 +223,16 @@ async fn last_entry(pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     }
 }
 
+#[tracing::instrument(
+    skip(entry, pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+        start = %entry.start,
+        stop = %entry.stop,
+        code = %entry.code,
+        memo = %entry.memo,
+    )
+)]
 async fn update_entry_handler(
     entry: Entry,
     pool: SqlitePool,
@@ -201,6 +244,12 @@ async fn update_entry_handler(
     }
 }
 
+#[tracing::instrument(
+    skip(pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+    )
+)]
 async fn delete_entry_handler(id: i32, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     info!("Deleting entry #{}", id);
     match db::delete_entry(&pool, id).await {
@@ -209,6 +258,12 @@ async fn delete_entry_handler(id: i32, pool: SqlitePool) -> Result<impl warp::Re
     }
 }
 
+#[tracing::instrument(
+    skip(pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+    )
+)]
 async fn delete_last_entry_handler(pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     info!("Deleting most recent entry.");
     match db::delete_last_entry(&pool).await {
@@ -217,6 +272,12 @@ async fn delete_last_entry_handler(pool: SqlitePool) -> Result<impl warp::Reply,
     }
 }
 
+#[tracing::instrument(
+    skip(pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+    )
+)]
 async fn new_project(project: Project, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     info!("Creating a new project.");
     match db::write_project(&pool, &project).await {
@@ -225,6 +286,12 @@ async fn new_project(project: Project, pool: SqlitePool) -> Result<impl warp::Re
     }
 }
 
+#[tracing::instrument(
+    skip(pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+    )
+)]
 async fn read_project(id: i32, pool: SqlitePool) -> Result<warp::reply::Response, Infallible> {
     info!("Reading project #{}", id);
     match db::read_project(&pool, id).await {
@@ -235,6 +302,12 @@ async fn read_project(id: i32, pool: SqlitePool) -> Result<warp::reply::Response
     }
 }
 
+#[tracing::instrument(
+    skip(pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+    )
+)]
 async fn read_all_projects(pool: SqlitePool) -> Result<warp::reply::Response, Infallible> {
     info!("Reading all projects.");
     match db::read_all_projects(&pool).await {
@@ -245,6 +318,12 @@ async fn read_all_projects(pool: SqlitePool) -> Result<warp::reply::Response, In
     }
 }
 
+#[tracing::instrument(
+    skip(pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+    )
+)]
 async fn update_project_handler(
     project: Project,
     pool: SqlitePool,
@@ -256,6 +335,12 @@ async fn update_project_handler(
     }
 }
 
+#[tracing::instrument(
+    skip(pool),
+    fields(
+        request_id = %Uuid::new_v4(),
+    )
+)]
 async fn delete_project_handler(
     code: String,
     pool: SqlitePool,
