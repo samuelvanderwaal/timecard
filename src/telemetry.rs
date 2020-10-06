@@ -7,7 +7,7 @@ use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 pub fn get_subscriber(name: String, env_filter: String) -> impl Subscriber + Sync + Send {
     // Create log filter; try to read from RUST_LOG env variable and default to env_filter if
     // env var not set.
-    let env_filter = 
+    let env_filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(env_filter));
 
     // Create a layer in the Bunyan format style outputting to stdout.

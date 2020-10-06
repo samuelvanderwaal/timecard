@@ -2,7 +2,7 @@
 use anyhow::Result;
 use dotenv::dotenv;
 use sqlx::sqlite::SqlitePool;
-use tracing::{info};
+use tracing::info;
 use warp::Filter;
 
 // Local

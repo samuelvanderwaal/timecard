@@ -163,7 +163,6 @@ async fn new_entry(entry: Entry, pool: SqlitePool) -> Result<impl warp::Reply, I
         Ok(_) => Ok(http::StatusCode::OK),
         Err(_) => Ok(http::StatusCode::BAD_REQUEST),
     }
-
 }
 
 #[tracing::instrument(
