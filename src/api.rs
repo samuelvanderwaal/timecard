@@ -252,8 +252,14 @@ async fn update_entry_handler(
 async fn delete_entry_handler(id: i32, pool: SqlitePool) -> Result<impl warp::Reply, Infallible> {
     info!("Deleting entry #{}", id);
     match db::delete_entry(&pool, id).await {
-        Ok(_) => Ok(http::StatusCode::OK),
-        Err(_) => Ok(http::StatusCode::BAD_REQUEST),
+        Ok(_) => Ok(warp::reply::with_status(
+            "Entry deleted.",
+            http::StatusCode::OK,
+        )),
+        Err(_) => Ok(warp::reply::with_status(
+            "Error deleting entry.",
+            http::StatusCode::BAD_REQUEST,
+        )),
     }
 }
 
@@ -347,11 +353,11 @@ async fn delete_project_handler(
     info!("Deleting project: {}", code);
     match db::delete_project(&pool, code).await {
         Ok(_) => Ok(warp::reply::with_status(
-            "Entry deleted.",
+            "Project deleted.",
             http::StatusCode::OK,
         )),
         Err(_) => Ok(warp::reply::with_status(
-            "Error deleting entry.",
+            "Error deleting project.",
             http::StatusCode::BAD_REQUEST,
         )),
     }
@@ -369,7 +375,7 @@ mod tests {
         let pool = db::tests::setup_test_db().await?;
         db::tests::setup_entries_table(&pool).await?;
 
-        let mut exp_entry: db::Entry = Faker.fake();
+        let mut exp_entry: Entry = Faker.fake();
         exp_entry.id = Some(1);
         db::write_entry(&pool, &exp_entry).await?;
 
@@ -394,7 +400,7 @@ mod tests {
         let pool = db::tests::setup_test_db().await?;
         db::tests::setup_entries_table(&pool).await?;
 
-        let mut exp_entry: db::Entry = Faker.fake();
+        let mut exp_entry: Entry = Faker.fake();
         exp_entry.id = Some(1);
 
         let exp_json = Bytes::from(serde_json::to_string(&exp_entry).unwrap());
@@ -424,7 +430,7 @@ mod tests {
         let pool = db::tests::setup_test_db().await?;
         db::tests::setup_entries_table(&pool).await?;
 
-        let mut exp_entry: db::Entry = Faker.fake();
+        let mut exp_entry: Entry = Faker.fake();
         let id = db::write_entry(&pool, &exp_entry).await?;
 
         exp_entry.id = Some(id);
@@ -458,7 +464,7 @@ mod tests {
         let pool = db::tests::setup_test_db().await?;
         db::tests::setup_entries_table(&pool).await?;
 
-        let mut entry: db::Entry = Faker.fake();
+        let mut entry: Entry = Faker.fake();
         entry.id = Some(1);
         db::write_entry(&pool, &entry).await?;
 
@@ -485,7 +491,7 @@ mod tests {
         let pool = db::tests::setup_test_db().await?;
         db::tests::setup_projects_table(&pool).await?;
 
-        let mut exp_project: db::Project = Faker.fake();
+        let mut exp_project: Project = Faker.fake();
         exp_project.id = Some(1);
         db::write_project(&pool, &exp_project).await?;
 
@@ -510,7 +516,7 @@ mod tests {
         let pool = db::tests::setup_test_db().await?;
         db::tests::setup_projects_table(&pool).await?;
 
-        let mut exp_project: db::Project = Faker.fake();
+        let mut exp_project: Project = Faker.fake();
         exp_project.id = Some(1);
 
         let exp_json = Bytes::from(serde_json::to_string(&exp_project).unwrap());
@@ -538,7 +544,7 @@ mod tests {
         let pool = db::tests::setup_test_db().await?;
         db::tests::setup_projects_table(&pool).await?;
 
-        let mut exp_project: db::Project = Faker.fake();
+        let mut exp_project: Project = Faker.fake();
         let id = db::write_project(&pool, &exp_project).await?;
 
         exp_project.id = Some(id);
@@ -570,7 +576,7 @@ mod tests {
         let pool = db::tests::setup_test_db().await?;
         db::tests::setup_projects_table(&pool).await?;
 
-        let mut project: db::Project = Faker.fake();
+        let mut project: Project = Faker.fake();
         project.id = Some(1);
         let code = project.code.clone();
         db::write_project(&pool, &project).await?;
@@ -585,10 +591,10 @@ mod tests {
 
         assert_eq!(res.status(), 200);
 
-        // Entry should not exist.
+        // Project should not exist.
         let _ = db::read_project(&pool, project.id.unwrap()).await.is_err();
 
-        assert_eq!(res.body(), "Entry deleted.");
+        assert_eq!(res.body(), "Project deleted.");
 
         Ok(())
     }
