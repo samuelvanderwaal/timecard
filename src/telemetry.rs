@@ -1,6 +1,7 @@
 use tracing::subscriber::set_global_default;
 use tracing::Subscriber;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_journald;
 use tracing_log::LogTracer;
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter, Registry};
 
@@ -13,6 +14,9 @@ pub fn get_subscriber(name: String, env_filter: String) -> impl Subscriber + Syn
     // Create a layer in the Bunyan format style outputting to stdout.
     let formatting_layer = BunyanFormattingLayer::new(name, std::io::stdout);
 
+    // Create a layer for logging to journald
+    let journald_layer = tracing_journald::Layer::new().expect("Failed to connect to journald socket.");
+
     // Register our layers
     // JsonStorageLayer processes spans data and stores the associated metadata into JSON format for downstream layers.
     // BunyanFormattingLayer builds on top of JsonStorageLayer and creates bunyan-compatible JSON formatting.
@@ -20,6 +24,7 @@ pub fn get_subscriber(name: String, env_filter: String) -> impl Subscriber + Syn
         .with(env_filter)
         .with(JsonStorageLayer)
         .with(formatting_layer)
+        .with(journald_layer)
 }
 
 pub fn init_subscriber(subscriber: impl Subscriber + Sync + Send) {
