@@ -28,6 +28,12 @@ fn with_pool(
 }
 
 // Filters
+pub fn health_check_filter() -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    warp::path!("health_check")
+        .and(warp::get())
+        .and_then(health_check)
+}
+
 pub fn post_entry(
     pool: SqlitePool,
 ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
@@ -146,6 +152,16 @@ pub fn delete_project(
 }
 
 // Handlers
+
+#[tracing::instrument(
+    name = "Health check",
+    fields(
+        request_id = %Uuid::new_v4(),
+    )
+)]
+async fn health_check() -> Result<impl warp::Reply, Infallible> {
+    Ok(http::StatusCode::OK)
+}
 
 #[tracing::instrument(
     name = "Processing new entry",

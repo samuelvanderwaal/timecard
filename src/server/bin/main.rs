@@ -28,6 +28,7 @@ async fn main() -> Result<()> {
 
 async fn run(pool: SqlitePool, listen_port: u16) {
     let routes = api::post_entry(pool.clone())
+        .or(api::health_check_filter())
         .or(api::get_entry(pool.clone()))
         .or(api::update_entry(pool.clone()))
         .or(api::get_entries_between(pool.clone()))
